@@ -17,7 +17,7 @@ export default function Root() {
     // declare the data fetching function
     const fetchData = async () => {
       // const data = await fetch("http://localhost:3000/pressure_profiles.arrow");
-      const data = await fetch("/assets/calipso_backscatter_3d.feather");
+      const data = await fetch("https://example-public-data.s3.us-west-2.amazonaws.com/calipso_backscatter_3d.feather");
       // const data = await fetch("https://81d5-207-157-81-66.ngrok-free.app/points?minx=10&maxx=30&miny=10&maxy=30&minz=10&maxz=30&limit=10");
 
       const buffer = await data.arrayBuffer();
