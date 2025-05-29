@@ -9,7 +9,6 @@ const CurtainSample = lazy(() => import('./visualizations/curtain-sample.jsx'));
 const ExperimentWithShaderInjection = lazy(() => import('./visualizations/experiment-with-shader-injection.jsx'));
 const FCXClone = lazy(() => import('./visualizations/FCX-clone.jsx'));
 const FlightWithPolygon = lazy(() => import('./visualizations/flight-with-polygon.jsx'));
-const GeoArrowLayer = lazy(() => import('./visualizations/GeoArrowLayer.jsx'));
 const PlaneArcAnimation = lazy(() => import('./visualizations/plane-arc-animation.jsx'));
 const PointcloudAnimation = lazy(() => import('./visualizations/pointcloud-animation.jsx'));
 const TilelayerInterception = lazy(() => import('./visualizations/tilelayer-interception.jsx'));
