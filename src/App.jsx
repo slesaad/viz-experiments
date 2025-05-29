@@ -1,6 +1,7 @@
 import React from 'react';
-import { Routes, Route, useLocation, Link } from 'react-router-dom';
+import { Routes, Route, useLocation } from 'react-router-dom';
 import { Sidebar } from './components/Sidebar';
+import { Home } from './components/Home';
 
 // Lazy load all visualizations
 const AircraftER2 = React.lazy(() => import('./visualizations/aircraft-er2.jsx'));
@@ -39,7 +40,7 @@ export default function App() {
       <main className="main-content">
         <React.Suspense fallback={<div>Loading...</div>}>
           <Routes>
-            <Route path="/" element={<CalipsoCurtain />} />
+            <Route path="/" element={<Home />} />
             {visualizations.map(({ path, component: Component }) => (
               <Route key={path} path={path} element={<Component />} />
             ))}
