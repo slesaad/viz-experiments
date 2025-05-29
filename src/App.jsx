@@ -24,7 +24,6 @@ const visualizations = [
   { label: 'Flight with Polygon', component: FlightWithPolygon },
   { label: 'Plane Arc Animation', component: PlaneArcAnimation },
   { label: 'Shader Injection', component: ExperimentWithShaderInjection },
-  // { label: 'GeoArrow Layer', component: GeoArrowLayer },
   { label: 'Pointcloud Animation', component: PointcloudAnimation },
   { label: 'Tilelayer Interception', component: TilelayerInterception },
   { label: 'Vertex Instance Shader', component: VertexInstanceBasedShaderInjection },
