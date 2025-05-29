@@ -1,16 +1,23 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 
-export function Sidebar({ data, active, onChange }) {
+export function Sidebar({ data, active }) {
   return (
     <nav className="sidebar">
+      <Link
+        to="/"
+        className={`sidebar-link ${active === '/' ? 'active' : ''}`}
+      >
+        Home
+      </Link>
       {data.map((item) => (
-        <a
+        <Link
           key={item.label}
-          onClick={() => onChange(item.label)}
-          className={`sidebar-link ${item.label === active ? 'active' : ''}`}
+          to={item.path}
+          className={`sidebar-link ${item.path === active ? 'active' : ''}`}
         >
           {item.label}
-        </a>
+        </Link>
       ))}
     </nav>
   );
