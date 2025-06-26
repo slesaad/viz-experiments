@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import DeckGL from '@deck.gl/react';
-// import { Map } from 'react-map-gl';
 import { BitmapLayer } from '@deck.gl/layers';
 import { TileLayer } from '@deck.gl/geo-layers';
 import { HeatmapLayer } from '@deck.gl/aggregation-layers';
-// import Map from 'react-map-gl/mapbox';
+import Map from 'react-map-gl/mapbox';
 
 // Initial view state
 const INITIAL_VIEW_STATE = {
@@ -136,26 +135,26 @@ const MangroveMap = () => {
                 controller={true}
                 layers={[
 
-                    new TileLayer({
-                        data: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                        minZoom: 0,
-                        maxZoom: 19,
-                        tileSize: 256,
-                        renderSubLayers: props => {
-                          const { boundingBox: bbox, content: image } = props.tile;
+                    // new TileLayer({
+                    //     data: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                    //     minZoom: 0,
+                    //     maxZoom: 19,
+                    //     tileSize: 256,
+                    //     renderSubLayers: props => {
+                    //       const { boundingBox: bbox, content: image } = props.tile;
 
-                          if (!image) return null;
+                    //       if (!image) return null;
 
-                          return new BitmapLayer(props, {
-                            data: null,
-                            image: props.data,
-                            bounds: [bbox[0][0], bbox[0][1], bbox[1][0], bbox[1][1]]
-                          })
-                        }
-                      }),
+                    //       return new BitmapLayer(props, {
+                    //         data: null,
+                    //         image: props.data,
+                    //         bounds: [bbox[0][0], bbox[0][1], bbox[1][0], bbox[1][1]]
+                    //       })
+                    //     }
+                    //   }),
                     new TileLayer({
                         id: 'mangrove-cog-dynamic',
-                        data: `https://dev.openveda.cloud/api/raster/searches/ef18fe0be7abfed4fe3d6903d0b72994/tiles/WebMercatorQuad/{z}/{x}/{y}@1x?assets=cog_default&colormap_name=ylgnbu&rescale=0%2C45&nodata=0&tile_scale=2`,
+                        data: `https://dev.openveda.cloud/api/raster/searches/ef18fe0be7abfed4fe3d6903d0b72994/tiles/WebMercatorQuad/{z}/{x}/{y}@1x?assets=cog_default&colormap_name=ylgnbu&rescale=0%2C45&nodata=0&tile_scale=3`,
                         minZoom: ZOOM_THRESHOLD - 1,
                         maxZoom: 18,
                         tileSize: 256,
@@ -186,14 +185,15 @@ const MangroveMap = () => {
                     ...layers]}
                 onViewStateChange={({ viewState }) => setViewState(viewState)}
             >
-                {/* <Map
-                    mapStyle="mapbox://styles/mapbox/light-v11"
-                    mapboxAccessToken={process.env.REACT_APP_MAPBOX_TOKEN || 'pk.eyJ1IjoiY292aWQtbmFzYSIsImEiOiJjbGNxaWdqdXEwNjJnM3VuNDFjM243emlsIn0.NLbvgae00NUD5K64CD6ZyA'} // Replace with your token
-                /> */}
+                <Map
+                    mapStyle="mapbox://styles/mapbox/dark-v11"
+                    projection="mercator"
+                    mapboxAccessToken={'pk.eyJ1IjoiY292aWQtbmFzYSIsImEiOiJjbGNxaWdqdXEwNjJnM3VuNDFjM243emlsIn0.NLbvgae00NUD5K64CD6ZyA'} // Replace with your token
+                />
             </DeckGL>
 
             {/* Loading indicator for tiles */}
-            {viewState.zoom > 12 && (
+            {(viewState.zoom > ZOOM_THRESHOLD - 1) && (
                 <div className="absolute bottom-4 left-4 bg-white px-3 py-2 rounded shadow-lg text-sm text-gray-600">
                     Loading detailed satellite data...
                 </div>
