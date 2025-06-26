@@ -5,6 +5,7 @@ import { Home } from './components/Home';
 
 // Lazy load all visualizations
 const AircraftER2 = React.lazy(() => import('./visualizations/aircraft-er2.jsx'));
+const MangroveMap = React.lazy(() => import('./visualizations/mangroves.jsx'));
 // const LAZ = lazy(() => import('./visualizations/laz.jsx'));
 const CalipsoCurtain = React.lazy(() => import('./visualizations/calipso-curtain.jsx'));
 const CurtainSample = React.lazy(() => import('./visualizations/curtain-sample.jsx'));
@@ -19,6 +20,7 @@ const VertexInstanceBasedShaderInjection = React.lazy(() => import('./visualizat
 const visualizations = [
   // { label: 'LAZ', component: LAZ },
   { label: 'Calipso Curtain', path: '/calipso-curtain', component: CalipsoCurtain },
+  { label: 'Mangroves', path: '/mangroves', component: MangroveMap },
   { label: 'FCX Clone', path: '/fcx-clone', component: FCXClone },
   { label: 'Curtain Sample', path: '/curtain-sample', component: CurtainSample },
   { label: 'Aircraft ER2', path: '/aircraft-er2', component: AircraftER2 },
