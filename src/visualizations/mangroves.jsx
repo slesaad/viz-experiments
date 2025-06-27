@@ -181,7 +181,7 @@ const MangroveMap = () => {
                         position: 'absolute',
                         bottom: '1rem',
                         right: '1rem',
-                        background: 'rgba(255,255,255,0.9)',
+                        background: 'rgba(255,255,255,1)',
                         padding: '12px 16px',
                         borderRadius: '8px',
                         boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
