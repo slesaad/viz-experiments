@@ -134,33 +134,15 @@ const MangroveMap = () => {
                 initialViewState={INITIAL_VIEW_STATE}
                 controller={true}
                 layers={[
-
-                    // new TileLayer({
-                    //     data: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                    //     minZoom: 0,
-                    //     maxZoom: 19,
-                    //     tileSize: 256,
-                    //     renderSubLayers: props => {
-                    //       const { boundingBox: bbox, content: image } = props.tile;
-
-                    //       if (!image) return null;
-
-                    //       return new BitmapLayer(props, {
-                    //         data: null,
-                    //         image: props.data,
-                    //         bounds: [bbox[0][0], bbox[0][1], bbox[1][0], bbox[1][1]]
-                    //       })
-                    //     }
-                    //   }),
                     new TileLayer({
                         id: 'mangrove-cog-dynamic',
-                        data: `https://dev.openveda.cloud/api/raster/searches/ef18fe0be7abfed4fe3d6903d0b72994/tiles/WebMercatorQuad/{z}/{x}/{y}@1x?assets=cog_default&colormap_name=ylgnbu&rescale=0%2C45&nodata=0&tile_scale=3`,
+                        data: `https://dev.openveda.cloud/api/raster/searches/ef18fe0be7abfed4fe3d6903d0b72994/tiles/WebMercatorQuad/{z}/{x}/{y}@2x?assets=cog_default&colormap_name=greens&rescale=1%2C45&nodata=0&tile_scale=2`,
                         minZoom: ZOOM_THRESHOLD - 1,
                         maxZoom: 18,
-                        tileSize: 256,
+                        tileSize: 512,
                         opacity: 1,
                         pickable: true,
-
+                        maxRequests: 8,
                         renderSubLayers: (props) => {
                             const { _bbox: { west, south, east, north } } = props.tile;
                             return new BitmapLayer(props, {
@@ -176,13 +158,13 @@ const MangroveMap = () => {
                                 ]
                             });
                         },
-
                         // Add loading states
                         onTileLoad: () => {
                             // Optional: update loading state
                         }
-                        }),
-                    ...layers]}
+                    }),
+                    ...layers
+                ]}
                 onViewStateChange={({ viewState }) => setViewState(viewState)}
             >
                 <Map
@@ -192,12 +174,43 @@ const MangroveMap = () => {
                 />
             </DeckGL>
 
-            {/* Loading indicator for tiles */}
-            {(viewState.zoom > ZOOM_THRESHOLD - 1) && (
-                <div className="absolute bottom-4 left-4 bg-white px-3 py-2 rounded shadow-lg text-sm text-gray-600">
-                    Loading detailed satellite data...
+            {/* Colormap legend for Greens, rescale 1-63 */}
+            <div
+                style={{
+                    position: 'absolute',
+                    bottom: '1rem',
+                    right: '1rem',
+                    background: 'rgba(255,255,255,0.9)',
+                    padding: '12px 16px',
+                    borderRadius: '8px',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                    minWidth: '180px',
+                    zIndex: 20,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center'
+                }}
+            >
+                <div style={{ fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: '4px', textAlign: 'center', width: '100%' }}>
+                    Mangrove Height (m)
                 </div>
-            )}
+                <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                    <span style={{ fontSize: '12px', color: '#4B5563', marginRight: '8px' }}>1</span>
+                    <div
+                        style={{
+                            width: '120px',
+                            height: '16px',
+                            background: 'linear-gradient(to right, #f7fcf5 0%, #c7e9c0 25%, #74c476 50%, #238b45 75%, #00441b 100%)',
+                            borderRadius: '4px',
+                            border: '1px solid #e5e7eb',
+                        }}
+                    />
+                    <span style={{ fontSize: '12px', color: '#4B5563', marginLeft: '8px' }}>63</span>
+                </div>
+                <div style={{ fontSize: '10px', color: '#9CA3AF', marginTop: '4px', textAlign: 'center', width: '100%' }}>
+                    Colormap: Greens
+                </div>
+            </div>
         </div>
     );
 };
