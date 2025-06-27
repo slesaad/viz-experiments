@@ -175,42 +175,44 @@ const MangroveMap = () => {
             </DeckGL>
 
             {/* Colormap legend for Greens, rescale 1-63 */}
-            <div
-                style={{
-                    position: 'absolute',
-                    bottom: '1rem',
-                    right: '1rem',
-                    background: 'rgba(255,255,255,0.9)',
-                    padding: '12px 16px',
-                    borderRadius: '8px',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-                    minWidth: '180px',
-                    zIndex: 20,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center'
-                }}
-            >
-                <div style={{ fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: '4px', textAlign: 'center', width: '100%' }}>
-                    Mangrove Height (m)
+            {viewState.zoom > ZOOM_THRESHOLD && (
+                <div
+                    style={{
+                        position: 'absolute',
+                        bottom: '1rem',
+                        right: '1rem',
+                        background: 'rgba(255,255,255,0.9)',
+                        padding: '12px 16px',
+                        borderRadius: '8px',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                        minWidth: '180px',
+                        zIndex: 20,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center'
+                    }}
+                >
+                    <div style={{ fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: '4px', textAlign: 'center', width: '100%' }}>
+                        Mangrove Height (m)
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                        <span style={{ fontSize: '12px', color: '#4B5563', marginRight: '8px' }}>1</span>
+                        <div
+                            style={{
+                                width: '120px',
+                                height: '16px',
+                                background: 'linear-gradient(to right, #f7fcf5 0%, #c7e9c0 25%, #74c476 50%, #238b45 75%, #00441b 100%)',
+                                borderRadius: '4px',
+                                border: '1px solid #e5e7eb',
+                            }}
+                        />
+                        <span style={{ fontSize: '12px', color: '#4B5563', marginLeft: '8px' }}>63</span>
+                    </div>
+                    <div style={{ fontSize: '10px', color: '#9CA3AF', marginTop: '4px', textAlign: 'center', width: '100%' }}>
+                        Colormap: Greens
+                    </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                    <span style={{ fontSize: '12px', color: '#4B5563', marginRight: '8px' }}>1</span>
-                    <div
-                        style={{
-                            width: '120px',
-                            height: '16px',
-                            background: 'linear-gradient(to right, #f7fcf5 0%, #c7e9c0 25%, #74c476 50%, #238b45 75%, #00441b 100%)',
-                            borderRadius: '4px',
-                            border: '1px solid #e5e7eb',
-                        }}
-                    />
-                    <span style={{ fontSize: '12px', color: '#4B5563', marginLeft: '8px' }}>63</span>
-                </div>
-                <div style={{ fontSize: '10px', color: '#9CA3AF', marginTop: '4px', textAlign: 'center', width: '100%' }}>
-                    Colormap: Greens
-                </div>
-            </div>
+            )}
         </div>
     );
 };
