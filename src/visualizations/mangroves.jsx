@@ -65,7 +65,7 @@ const createMangroveHeatmap = (data, zoom) => {
             data: data,
             getPosition: d => d.position,
             getWeight: d => d.weight,
-            radiusPixels: 60,
+            radiusPixels: 10,
             intensity: 2,
             threshold: 0.05,
             colorRange: [
