@@ -117,6 +117,7 @@ const MangroveMap = () => {
     const [tilesLoading, setTilesLoading] = useState(false);
     const [tileUrl, setTileUrl] = useState(null);
     const [tileLayerReady, setTileLayerReady] = useState(false);
+    const [selectedAsset, setSelectedAsset] = useState('mangrove-agb');
 
     // Load STAC data on component mount
     useEffect(() => {
@@ -130,7 +131,7 @@ const MangroveMap = () => {
         loadData();
     }, []);
 
-    // Fetch dynamic tile URL on mount
+    // Fetch dynamic tile URL on mount and when selectedAsset changes
     useEffect(() => {
       async function fetchTileUrl() {
         setTileLayerReady(false);
@@ -151,8 +152,8 @@ const MangroveMap = () => {
           // 2. Find the tilejson link
           const tilejsonLink = registerData.links.find(link => link.rel === 'tilejson');
           if (!tilejsonLink) return;
-          // 3. Replace {tileMatrixSetId} with WebMercatorQuad
-          const tilejsonUrl = tilejsonLink.href.replace('{tileMatrixSetId}', 'WebMercatorQuad') + '?assets=cog_default&colormap_name=greens&rescale=1%2C45&nodata=0&tile_scale=2';
+          // 3. Replace {tileMatrixSetId} with WebMercatorQuad and use selectedAsset
+          const tilejsonUrl = tilejsonLink.href.replace('{tileMatrixSetId}', 'WebMercatorQuad') + `?assets=${selectedAsset}&colormap_name=greens&rescale=1%2C45&nodata=0&tile_scale=2`;
           // 4. Fetch tilejson
           const tilejsonResp = await fetch(tilejsonUrl);
           const tilejsonData = await tilejsonResp.json();
@@ -166,7 +167,7 @@ const MangroveMap = () => {
         }
       }
       fetchTileUrl();
-    }, []);
+    }, [selectedAsset]);
 
     // Create layers based on current view state and settings
     const layers = useMemo(() => {
@@ -212,6 +213,19 @@ const MangroveMap = () => {
 
     return (
         <div className="relative w-full h-screen">
+            {/* Asset selection radio buttons */}
+            <div style={{ position: 'absolute', top: '1rem', left: '1rem', zIndex: 50, background: 'rgba(255,255,255,0.95)', padding: '8px 16px', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
+                <div style={{ fontWeight: 600, fontSize: '13px', marginBottom: '4px' }}>Select Asset:</div>
+                <label style={{ marginRight: '12px' }}>
+                    <input type="radio" name="asset" value="mangrove-agb" checked={selectedAsset === 'mangrove-agb'} onChange={() => setSelectedAsset('mangrove-agb')} /> mangrove-agb
+                </label>
+                <label style={{ marginRight: '12px' }}>
+                    <input type="radio" name="asset" value="mangrove-hba" checked={selectedAsset === 'mangrove-hba'} onChange={() => setSelectedAsset('mangrove-hba')} /> mangrove-hba
+                </label>
+                <label>
+                    <input type="radio" name="asset" value="mangrove-hmax95" checked={selectedAsset === 'mangrove-hmax95'} onChange={() => setSelectedAsset('mangrove-hmax95')} /> mangrove-hmax95
+                </label>
+            </div>
             <DeckGL
                 initialViewState={INITIAL_VIEW_STATE}
                 controller={true}
