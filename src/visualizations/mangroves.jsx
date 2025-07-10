@@ -2,7 +2,8 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import DeckGL from '@deck.gl/react';
 import { BitmapLayer } from '@deck.gl/layers';
 import { TileLayer } from '@deck.gl/geo-layers';
-import { HeatmapLayer } from '@deck.gl/aggregation-layers';
+import { ScatterplotLayer } from '@deck.gl/layers';
+import {FlyToInterpolator, WebMercatorViewport} from '@deck.gl/core';
 import Map from 'react-map-gl/mapbox';
 
 // Initial view state
@@ -79,29 +80,45 @@ const processSTACItems = async () => {
     }
 };
 
-// Create mangrove heat map layers based on zoom level
-const createMangroveHeatmap = (data, zoom) => {
+// Create mangrove marker layer (ScatterplotLayer) for all zoom levels
+const createMangroveMarkers = (data, flyToBbox) => {
     if (!data || data.length === 0) return null;
-    // Continental scale (zoom 0-6): Broad heat map
-    if (zoom <= ZOOM_THRESHOLD) {
-        return new HeatmapLayer({
-            id: 'mangrove-heatmap-continental',
-            data: data,
-            getPosition: d => d.position,
-            getWeight: d => d.weight,
-            radiusPixels: 20,
-            intensity: 2,
-            threshold: 0.05,
-            colorRange: [
-                [0, 128, 0, 0],     // transparent
-                [0, 255, 0, 100],   // light green
-                [0, 200, 0, 150],   // medium green  
-                [0, 150, 0, 200],   // dark green
-                [0, 100, 0, 255]    // darkest green
-            ]
-        });
-    }
+    return new ScatterplotLayer({
+        id: 'mangrove-markers',
+        data: data,
+        getPosition: d => d.position,
+        getRadius: 10, // adjust as needed
+        getFillColor: [34, 139, 34, 180],
+        getLineColor: [0, 100, 0, 255],
+        lineWidthMinPixels: 1,
+        pickable: true,
+        radiusUnits: 'pixels',
+        onClick: (info) => {
+            if (info.object && info.object.bbox) {
+                flyToBbox(info.object.bbox);
+            }
+        }
+    });
 };
+
+// Utility to fit bbox (returns {longitude, latitude, zoom})
+function getViewForBbox(bbox) {
+  // bbox: [west, south, east, north]
+  const [west, south, east, north] = bbox;
+  const longitude = (west + east) / 2;
+  const latitude = (south + north) / 2;
+  // Rough zoom calculation: fit bounds to viewport width (assume 800px)
+  // This is a simple approximation for Web Mercator
+  const WORLD_DIM = 256;
+  const ZOOM_MAX = 18;
+  const width = Math.abs(east - west);
+  const height = Math.abs(north - south);
+  // Prevent log(0)
+  const lngZoom = Math.log2(360 / width);
+  const latZoom = Math.log2(180 / height);
+  const zoom = Math.min(lngZoom, latZoom, ZOOM_MAX);
+  return { longitude, latitude, zoom };
+}
 
 
 // Main component
@@ -118,6 +135,29 @@ const MangroveMap = () => {
     const [tileUrl, setTileUrl] = useState(null);
     const [tileLayerReady, setTileLayerReady] = useState(false);
     const [selectedAsset, setSelectedAsset] = useState('mangrove-agb');
+    const deckRef = useRef();
+
+    // Fly to bbox with fitBounds and animation
+    const flyToBbox = (bbox) => {
+      if (!deckRef.current) return;
+      const { width, height } = deckRef.current;
+      const viewport = new WebMercatorViewport({
+        width,
+        height,
+        ...viewState
+      });
+      const bounds = [
+        [bbox[0], bbox[1]],
+        [bbox[2], bbox[3]]
+      ];
+      const newViewState = viewport.fitBounds(bounds, { padding: 20 });
+      setViewState({
+        ...viewState,
+        ...newViewState,
+        transitionDuration: 3000,
+        transitionInterpolator: new FlyToInterpolator({ speed: 1.5 })
+      });
+    };
 
     // Load STAC data on component mount
     useEffect(() => {
@@ -173,14 +213,12 @@ const MangroveMap = () => {
     const layers = useMemo(() => {
         if (!showMangroves || !stacData.length) return [];
 
-        const currentZoom = viewState.zoom || 0;
-
         const layerList = [];
 
-        // Add heat map or scatter plot layer
-        const heatmapLayer = createMangroveHeatmap(stacData, currentZoom);
-        if (heatmapLayer) {
-            layerList.push(heatmapLayer.clone({ opacity }));
+        // Add marker layer (ScatterplotLayer) for all zoom levels
+        const markerLayer = createMangroveMarkers(stacData, flyToBbox);
+        if (markerLayer) {
+            layerList.push(markerLayer.clone({ opacity }));
         }
 
         return layerList;
@@ -237,7 +275,9 @@ const MangroveMap = () => {
                 </div>
             </div>
             <DeckGL
+                ref={deckRef}
                 initialViewState={INITIAL_VIEW_STATE}
+                viewState={viewState}
                 controller={true}
                 layers={[
                     tileLayerReady && tileUrl && new TileLayer({
@@ -247,7 +287,7 @@ const MangroveMap = () => {
                         maxZoom: 18,
                         tileSize: 256,
                         opacity: 1,
-                        pickable: true,
+                        pickable: false,
                         maxRequests: 8,
                         renderSubLayers: (props) => {
                             const { _bbox: { west, south, east, north } } = props.tile;
