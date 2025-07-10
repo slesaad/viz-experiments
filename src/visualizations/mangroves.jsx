@@ -245,6 +245,13 @@ const MangroveMap = () => {
       'mangrove-hmax95': '95th percentile maximum height (Hmax95): The height below which 95% of mangrove canopy heights fall, measured in meters (m).'
     };
 
+    // Asset legend titles
+    const assetLegendTitles = {
+      'mangrove-agb': 'Aboveground Biomass (Mg/ha)',
+      'mangrove-hba': 'Height-based Area (m)',
+      'mangrove-hmax95': '95th Percentile Max Height (m)'
+    };
+
     if (loading) {
         return (
             <div className="w-full h-screen flex items-center justify-center bg-gray-100">
@@ -355,13 +362,13 @@ const MangroveMap = () => {
             )}
 
             {/* Colormap legend for Greens, rescale 1-63 */}
-            {viewState.zoom > ZOOM_THRESHOLD && (
+            {viewState.zoom > ZOOM_THRESHOLD - 1 && (
                 <div
                     style={{
                         position: 'absolute',
                         bottom: '1rem',
                         right: '1rem',
-                        background: 'rgba(255,255,255,1)',
+                        background: 'rgba(255,255,255,0.9)',
                         padding: '12px 16px',
                         borderRadius: '8px',
                         boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
@@ -373,7 +380,7 @@ const MangroveMap = () => {
                     }}
                 >
                     <div style={{ fontSize: '12px', fontWeight: 600, color: '#374151', marginBottom: '4px', textAlign: 'center', width: '100%' }}>
-                        Mangrove Height (m)
+                        {assetLegendTitles[selectedAsset] || 'Legend'}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
                         <span style={{ fontSize: '12px', color: '#4B5563', marginRight: '8px' }}>1</span>
