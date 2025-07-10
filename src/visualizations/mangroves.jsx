@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import DeckGL from '@deck.gl/react';
 import { BitmapLayer } from '@deck.gl/layers';
 import { TileLayer } from '@deck.gl/geo-layers';
@@ -18,8 +18,12 @@ const ZOOM_THRESHOLD = 4;
 // STAC API endpoint
 // TODO: uncomment this
 // const STAC_ENDPOINT = 'https://dev.openveda.cloud/api/stac/collections/mangrove-height-tandemx/items?limit=1500';
+const STAC_ENDPOINT = 'https://dev.openveda.cloud/api/stac'
+const STAC_SEARCH_ENDPOINT = `${STAC_ENDPOINT}/search`
+const COLLECTION_NAME = 'mangrove-height-tandemx'
+const RESPONSE_LIMIT = 10000;
 // For local development
-const STAC_ENDPOINT = '/assets/mangroves-stac.json'; // Local file in public/
+// const STAC_ENDPOINT = '/assets/mangroves-stac.json'; // Local file in public/
 
 // Utility function to calculate weight from bbox
 const calculateWeight = (bbox) => {
@@ -31,7 +35,27 @@ const calculateWeight = (bbox) => {
 // Process STAC items to extract centroids and metadata
 const processSTACItems = async () => {
     try {
-        const response = await fetch(STAC_ENDPOINT);
+        const cqlFilter = {
+            "filter-lang": "cql2-json",
+            "filter": {
+                "op": "and",
+                "args": [
+                    { "op": "eq", "args": [ { "property": "collection" }, COLLECTION_NAME ] }
+                ]
+            },
+            "limit": RESPONSE_LIMIT,
+            "fields": {
+                "include": ["bbox"],
+                "exclude": ["collection", "links"]
+            }
+        };
+        const response = await fetch(STAC_SEARCH_ENDPOINT, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(cqlFilter)
+        });
         const data = await response.json();
 
         return data.features.map(item => {
@@ -46,7 +70,6 @@ const processSTACItems = async () => {
                 weight: calculateWeight(bbox),
                 itemId: item.id,
                 bbox: bbox,
-                cogUrl: item.assets?.cog_default?.href
             };
         });
     } catch (error) {
@@ -87,6 +110,10 @@ const MangroveMap = () => {
     const [showMangroves, setShowMangroves] = useState(true);
     const [opacity, setOpacity] = useState(0.8);
     const [loading, setLoading] = useState(true);
+    const [searchValue, setSearchValue] = useState("");
+    const [searchLoading, setSearchLoading] = useState(false);
+    const searchInputRef = useRef(null);
+    const [tilesLoading, setTilesLoading] = useState(false);
 
     // Load STAC data on component mount
     useEffect(() => {
@@ -116,6 +143,15 @@ const MangroveMap = () => {
 
         return layerList;
     }, [stacData, viewState, showMangroves, opacity]);
+
+    // Tile loading handlers
+    const handleViewStateChange = ({ viewState }) => {
+        setViewState(viewState);
+        setTilesLoading(true);
+    };
+    const handleViewportLoad = () => {
+        setTilesLoading(false);
+    };
 
     if (loading) {
         return (
@@ -149,30 +185,64 @@ const MangroveMap = () => {
                                 data: null,
                                 image: props.data,
                                 bounds: [west, south, east, north],
-                                // Apply mangrove-specific color mapping
-                                colorDomain: [0, 255], // adjust based on your data range
+                                colorDomain: [0, 255],
                                 colorRange: [
-                                    [0, 0, 0, 0],         // transparent
-                                    [34, 139, 34, 200],   // mangrove green
-                                    [0, 100, 0, 255]      // dense mangrove
+                                    [0, 0, 0, 0],
+                                    [34, 139, 34, 200],
+                                    [0, 100, 0, 255]
                                 ]
                             });
                         },
-                        // Add loading states
-                        onTileLoad: () => {
-                            // Optional: update loading state
-                        }
+                        onViewportLoad: handleViewportLoad,
                     }),
                     ...layers
                 ]}
-                onViewStateChange={({ viewState }) => setViewState(viewState)}
+                onViewStateChange={handleViewStateChange}
             >
                 <Map
                     mapStyle="mapbox://styles/mapbox/dark-v11"
                     projection="mercator"
-                    mapboxAccessToken={'pk.eyJ1IjoiY292aWQtbmFzYSIsImEiOiJjbGNxaWdqdXEwNjJnM3VuNDFjM243emlsIn0.NLbvgae00NUD5K64CD6ZyA'} // Replace with your token
+                    mapboxAccessToken={'pk.eyJ1IjoiY292aWQtbmFzYSIsImEiOiJjbGNxaWdqdXEwNjJnM3VuNDFjM243emlsIn0.NLbvgae00NUD5K64CD6ZyA'}
                 />
             </DeckGL>
+
+            {/* Small tile loading indicator in top right */}
+            {tilesLoading && (
+                <div style={{
+                    position: 'absolute',
+                    top: '1rem',
+                    right: '1rem',
+                    background: 'rgba(255,255,255,0.95)',
+                    padding: '6px 12px',
+                    borderRadius: '6px',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                    zIndex: 40,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    fontSize: '13px',
+                    color: '#238b45',
+                    fontWeight: 500
+                }}>
+                    <span className="deck-spinner" />
+                    Loading map tiles...
+                    <style>{`
+                        .deck-spinner {
+                            width: 14px;
+                            height: 14px;
+                            border: 2px solid #238b45;
+                            border-top: 2px solid transparent;
+                            border-radius: 50%;
+                            display: inline-block;
+                            animation: deck-spin 1s linear infinite;
+                        }
+                        @keyframes deck-spin {
+                            0% { transform: rotate(0deg); }
+                            100% { transform: rotate(360deg); }
+                        }
+                    `}</style>
+                </div>
+            )}
 
             {/* Colormap legend for Greens, rescale 1-63 */}
             {viewState.zoom > ZOOM_THRESHOLD && (
