@@ -19,6 +19,7 @@ const ZOOM_THRESHOLD = 4;
 // TODO: uncomment this
 // const STAC_ENDPOINT = 'https://dev.openveda.cloud/api/stac/collections/mangrove-height-tandemx/items?limit=1500';
 const STAC_ENDPOINT = 'https://dev.openveda.cloud/api/stac'
+const RASTER_ENDPOINT = 'https://dev.openveda.cloud/api/raster'
 const STAC_SEARCH_ENDPOINT = `${STAC_ENDPOINT}/search`
 const COLLECTION_NAME = 'mangrove-height-tandemx'
 const RESPONSE_LIMIT = 10000;
@@ -88,7 +89,7 @@ const createMangroveHeatmap = (data, zoom) => {
             data: data,
             getPosition: d => d.position,
             getWeight: d => d.weight,
-            radiusPixels: 10,
+            radiusPixels: 20,
             intensity: 2,
             threshold: 0.05,
             colorRange: [
@@ -114,6 +115,8 @@ const MangroveMap = () => {
     const [searchLoading, setSearchLoading] = useState(false);
     const searchInputRef = useRef(null);
     const [tilesLoading, setTilesLoading] = useState(false);
+    const [tileUrl, setTileUrl] = useState(null);
+    const [tileLayerReady, setTileLayerReady] = useState(false);
 
     // Load STAC data on component mount
     useEffect(() => {
@@ -125,6 +128,44 @@ const MangroveMap = () => {
         };
 
         loadData();
+    }, []);
+
+    // Fetch dynamic tile URL on mount
+    useEffect(() => {
+      async function fetchTileUrl() {
+        setTileLayerReady(false);
+        try {
+          // 1. Register search
+          const registerResp = await fetch(`${RASTER_ENDPOINT}/searches/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              "filter-lang": "cql2-json",
+              "filter": {
+                "op": "eq",
+                "args": [{ "property": "collection" }, COLLECTION_NAME]
+            }
+            })
+          });
+          const registerData = await registerResp.json();
+          // 2. Find the tilejson link
+          const tilejsonLink = registerData.links.find(link => link.rel === 'tilejson');
+          if (!tilejsonLink) return;
+          // 3. Replace {tileMatrixSetId} with WebMercatorQuad
+          const tilejsonUrl = tilejsonLink.href.replace('{tileMatrixSetId}', 'WebMercatorQuad') + '?assets=cog_default&colormap_name=greens&rescale=1%2C45&nodata=0&tile_scale=2';
+          // 4. Fetch tilejson
+          const tilejsonResp = await fetch(tilejsonUrl);
+          const tilejsonData = await tilejsonResp.json();
+          // 5. Get the first tile URL
+          if (tilejsonData.tiles && tilejsonData.tiles.length > 0) {
+            setTileUrl(tilejsonData.tiles[0]);
+            setTileLayerReady(true);
+          }
+        } catch (err) {
+          setTileLayerReady(false);
+        }
+      }
+      fetchTileUrl();
     }, []);
 
     // Create layers based on current view state and settings
@@ -175,12 +216,12 @@ const MangroveMap = () => {
                 initialViewState={INITIAL_VIEW_STATE}
                 controller={true}
                 layers={[
-                    new TileLayer({
+                    tileLayerReady && tileUrl && new TileLayer({
                         id: 'mangrove-cog-dynamic',
-                        data: `https://dev.openveda.cloud/api/raster/searches/ef18fe0be7abfed4fe3d6903d0b72994/tiles/WebMercatorQuad/{z}/{x}/{y}@2x?assets=cog_default&colormap_name=greens&rescale=1%2C45&nodata=0&tile_scale=2`,
+                        data: tileUrl,
                         minZoom: ZOOM_THRESHOLD - 1,
                         maxZoom: 18,
-                        tileSize: 512,
+                        tileSize: 256,
                         opacity: 1,
                         pickable: true,
                         maxRequests: 8,
@@ -199,7 +240,6 @@ const MangroveMap = () => {
                             });
                         },
                         onViewportLoad: handleViewportLoad,
-                        onTileUnload: () => setTilesLoading(false)
                     }),
                     ...layers
                 ]}
