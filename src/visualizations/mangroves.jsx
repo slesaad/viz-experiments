@@ -147,7 +147,12 @@ const MangroveMap = () => {
     // Tile loading handlers
     const handleViewStateChange = ({ viewState }) => {
         setViewState(viewState);
-        setTilesLoading(true);
+        // Only show spinner if zoom is in tile loading range
+        if (viewState.zoom >= (ZOOM_THRESHOLD)) {
+            setTilesLoading(true);
+        } else {
+            setTilesLoading(false);
+        }
     };
     const handleViewportLoad = () => {
         setTilesLoading(false);
@@ -194,6 +199,7 @@ const MangroveMap = () => {
                             });
                         },
                         onViewportLoad: handleViewportLoad,
+                        onTileUnload: () => setTilesLoading(false)
                     }),
                     ...layers
                 ]}
