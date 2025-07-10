@@ -18,10 +18,10 @@ const ZOOM_THRESHOLD = 4;
 // STAC API endpoint
 // TODO: uncomment this
 // const STAC_ENDPOINT = 'https://dev.openveda.cloud/api/stac/collections/mangrove-height-tandemx/items?limit=1500';
-const STAC_ENDPOINT = 'https://dev.openveda.cloud/api/stac'
-const RASTER_ENDPOINT = 'https://dev.openveda.cloud/api/raster'
+const STAC_ENDPOINT = 'https://dev.ghg.center/api/stac'
+const RASTER_ENDPOINT = 'https://dev.ghg.center/api/raster'
 const STAC_SEARCH_ENDPOINT = `${STAC_ENDPOINT}/search`
-const COLLECTION_NAME = 'mangrove-height-tandemx'
+const COLLECTION_NAME = 'cms-mangrove-biomass-height-v5'
 const RESPONSE_LIMIT = 10000;
 // For local development
 // const STAC_ENDPOINT = '/assets/mangroves-stac.json'; // Local file in public/
@@ -200,6 +200,13 @@ const MangroveMap = () => {
         setTilesLoading(false);
     };
 
+    // Asset descriptions
+    const assetDescriptions = {
+      'mangrove-agb': 'Aboveground biomass (AGB): Estimated mass of living plant material above the soil, measured in megagrams per hectare (Mg/ha).',
+      'mangrove-hba': 'Height-based area (HBA): Area-weighted mean height of mangrove canopy, measured in meters (m).',
+      'mangrove-hmax95': '95th percentile maximum height (Hmax95): The height below which 95% of mangrove canopy heights fall, measured in meters (m).'
+    };
+
     if (loading) {
         return (
             <div className="w-full h-screen flex items-center justify-center bg-gray-100">
@@ -217,14 +224,17 @@ const MangroveMap = () => {
             <div style={{ position: 'absolute', top: '1rem', left: '1rem', zIndex: 50, background: 'rgba(255,255,255,0.95)', padding: '8px 16px', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
                 <div style={{ fontWeight: 600, fontSize: '13px', marginBottom: '4px' }}>Select Asset:</div>
                 <label style={{ marginRight: '12px' }}>
-                    <input type="radio" name="asset" value="mangrove-agb" checked={selectedAsset === 'mangrove-agb'} onChange={() => setSelectedAsset('mangrove-agb')} /> mangrove-agb
+                    <input type="radio" name="asset" value="mangrove-agb" checked={selectedAsset === 'mangrove-agb'} onChange={() => setSelectedAsset('mangrove-agb')} /> Aboveground Biomass (AGB)
                 </label>
                 <label style={{ marginRight: '12px' }}>
-                    <input type="radio" name="asset" value="mangrove-hba" checked={selectedAsset === 'mangrove-hba'} onChange={() => setSelectedAsset('mangrove-hba')} /> mangrove-hba
+                    <input type="radio" name="asset" value="mangrove-hba" checked={selectedAsset === 'mangrove-hba'} onChange={() => setSelectedAsset('mangrove-hba')} /> Height-based Area (HBA)
                 </label>
                 <label>
-                    <input type="radio" name="asset" value="mangrove-hmax95" checked={selectedAsset === 'mangrove-hmax95'} onChange={() => setSelectedAsset('mangrove-hmax95')} /> mangrove-hmax95
+                    <input type="radio" name="asset" value="mangrove-hmax95" checked={selectedAsset === 'mangrove-hmax95'} onChange={() => setSelectedAsset('mangrove-hmax95')} /> 95th Percentile Max Height (Hmax95)
                 </label>
+                <div style={{ marginTop: '10px', fontSize: '12px', color: '#374151', background: '#f3f4f6', borderRadius: '6px', padding: '8px', lineHeight: 1.4 }}>
+                  {assetDescriptions[selectedAsset]}
+                </div>
             </div>
             <DeckGL
                 initialViewState={INITIAL_VIEW_STATE}
