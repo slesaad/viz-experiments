@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import DeckGL from '@deck.gl/react';
 import { BitmapLayer } from '@deck.gl/layers';
 import { TileLayer } from '@deck.gl/geo-layers';
-import { ScatterplotLayer } from '@deck.gl/layers';
+import { IconLayer } from '@deck.gl/layers';
 import {FlyToInterpolator, WebMercatorViewport} from '@deck.gl/core';
 import Map from 'react-map-gl/mapbox';
 
@@ -80,20 +80,23 @@ const processSTACItems = async () => {
     }
 };
 
-// Create mangrove marker layer (ScatterplotLayer) for all zoom levels
+// Create mangrove marker layer (IconLayer) for all zoom levels
 const createMangroveMarkers = (data, flyToBbox) => {
     if (!data || data.length === 0) return null;
-    return new ScatterplotLayer({
+    // return null;
+    return new IconLayer({
         id: 'mangrove-markers',
         data: data,
-        getPosition: d => d.position,
-        getRadius: 10, // adjust as needed
-        getFillColor: [34, 139, 34, 180],
-        getLineColor: [0, 100, 0, 255],
-        lineWidthMinPixels: 1,
         pickable: true,
-        radiusUnits: 'pixels',
-        onClick: (info) => {
+        iconAtlas: 'https://raw.githubusercontent.com/visgl/deck.gl-data/master/website/icon-atlas.png',
+        iconMapping: 'https://raw.githubusercontent.com/visgl/deck.gl-data/master/website/icon-atlas.json',
+        getIcon: d => 'marker',
+        sizeScale: 8, // smaller
+        getPosition: d => d.position,
+        getSize: d => 2, // smaller
+        getColor: [34, 139, 34, 255],
+        getAnchor: d => 'bottom', // anchor at the bottom
+        onClick: info => {
             if (info.object && info.object.bbox) {
                 flyToBbox(info.object.bbox);
             }
@@ -119,6 +122,15 @@ function getViewForBbox(bbox) {
   const zoom = Math.min(lngZoom, latZoom, ZOOM_MAX);
   return { longitude, latitude, zoom };
 }
+
+    // Threshold for bbox area (in degrees^2, adjust as needed)
+    const BBOX_AREA_THRESHOLD = 10;
+    // Helper to calculate bbox area
+    function bboxArea(bbox) {
+      if (!bbox || bbox.length !== 4) return 0;
+      const [west, south, east, north] = bbox;
+      return Math.abs(east - west) * Math.abs(north - south);
+    }
 
 
 // Main component
@@ -215,9 +227,10 @@ const MangroveMap = () => {
 
         const layerList = [];
 
-        // Add marker layer (ScatterplotLayer) for all zoom levels
-        const markerLayer = createMangroveMarkers(stacData, flyToBbox);
-        if (markerLayer) {
+        // Add marker layer (IconLayer) for all zoom levels
+        const filteredStacData = stacData.filter(item => bboxArea(item.bbox) < BBOX_AREA_THRESHOLD);
+        const markerLayer = createMangroveMarkers(filteredStacData, flyToBbox);
+        if (markerLayer && viewState.zoom < ZOOM_THRESHOLD) {
             layerList.push(markerLayer.clone({ opacity }));
         }
 
@@ -267,7 +280,6 @@ const MangroveMap = () => {
         <div className="relative w-full h-screen">
             {/* Asset selection radio buttons */}
             <div style={{ position: 'absolute', top: '1rem', left: '1rem', zIndex: 50, background: 'rgba(255,255,255,0.95)', padding: '8px 16px', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
-                <div style={{ fontWeight: 600, fontSize: '13px', marginBottom: '4px' }}>Select Asset:</div>
                 <label style={{ marginRight: '12px' }}>
                     <input type="radio" name="asset" value="mangrove-agb" checked={selectedAsset === 'mangrove-agb'} onChange={() => setSelectedAsset('mangrove-agb')} /> Aboveground Biomass (AGB)
                 </label>
