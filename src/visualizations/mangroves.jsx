@@ -151,6 +151,27 @@ function filterByBboxArea(data, threshold, op = 'lt') {
   });
 }
 
+// --- LocalStorage Caching Utilities ---
+const CACHE_TTL = 1000 * 60 * 60; // 1 hour
+function setCache(key, data, ttlMs) {
+  const expires = Date.now() + ttlMs;
+  localStorage.setItem(key, JSON.stringify({ data, expires }));
+}
+function getCache(key) {
+  const cached = localStorage.getItem(key);
+  if (!cached) return null;
+  try {
+    const { data, expires } = JSON.parse(cached);
+    if (Date.now() > expires) {
+      localStorage.removeItem(key);
+      return null;
+    }
+    return data;
+  } catch {
+    localStorage.removeItem(key);
+    return null;
+  }
+}
 
 // Main component
 const MangroveMap = () => {
@@ -159,9 +180,6 @@ const MangroveMap = () => {
     const [showMangroves, setShowMangroves] = useState(true);
     const [opacity, setOpacity] = useState(0.8);
     const [loading, setLoading] = useState(true);
-    const [searchValue, setSearchValue] = useState("");
-    const [searchLoading, setSearchLoading] = useState(false);
-    const searchInputRef = useRef(null);
     const [tilesLoading, setTilesLoading] = useState(false);
     const [tileUrl, setTileUrl] = useState(null);
     const [tileLayerReady, setTileLayerReady] = useState(false);
@@ -194,11 +212,16 @@ const MangroveMap = () => {
     useEffect(() => {
         const loadData = async () => {
             setLoading(true);
-            const data = await processSTACItems();
+            // Cache by endpoint and collection
+            const stacKey = `stacData-${COLLECTION_NAME}`;
+            let data = getCache(stacKey);
+            if (!data) {
+                data = await processSTACItems();
+                setCache(stacKey, data, CACHE_TTL);
+            }
             setStacData(data);
             setLoading(false);
         };
-
         loadData();
     }, []);
 
@@ -207,27 +230,36 @@ const MangroveMap = () => {
       async function fetchTileUrl() {
         setTileLayerReady(false);
         try {
-          // 1. Register search
-          const registerResp = await fetch(`${RASTER_ENDPOINT}/searches/register`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              "filter-lang": "cql2-json",
-              "filter": {
-                "op": "eq",
-                "args": [{ "property": "collection" }, COLLECTION_NAME]
-            }
-            })
-          });
-          const registerData = await registerResp.json();
+          // 1. Register search (cache by collection)
+          const registerKey = `raster-register-${COLLECTION_NAME}`;
+          let registerData = getCache(registerKey);
+          if (!registerData) {
+            const registerResp = await fetch(`${RASTER_ENDPOINT}/searches/register`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                "filter-lang": "cql2-json",
+                "filter": {
+                  "op": "eq",
+                  "args": [{ "property": "collection" }, COLLECTION_NAME]
+                }
+              })
+            });
+            registerData = await registerResp.json();
+            setCache(registerKey, registerData, CACHE_TTL);
+          }
           // 2. Find the tilejson link
           const tilejsonLink = registerData.links.find(link => link.rel === 'tilejson');
           if (!tilejsonLink) return;
           // 3. Replace {tileMatrixSetId} with WebMercatorQuad and use selectedAsset
           const tilejsonUrl = tilejsonLink.href.replace('{tileMatrixSetId}', 'WebMercatorQuad') + `?assets=${selectedAsset}&colormap_name=greens&rescale=1%2C45&nodata=0&tile_scale=2`;
-          // 4. Fetch tilejson
-          const tilejsonResp = await fetch(tilejsonUrl);
-          const tilejsonData = await tilejsonResp.json();
+          // 4. Fetch tilejson (cache by tilejsonUrl)
+          let tilejsonData = getCache(tilejsonUrl);
+          if (!tilejsonData) {
+            const tilejsonResp = await fetch(tilejsonUrl);
+            tilejsonData = await tilejsonResp.json();
+            setCache(tilejsonUrl, tilejsonData, CACHE_TTL);
+          }
           // 5. Get the first tile URL
           if (tilejsonData.tiles && tilejsonData.tiles.length > 0) {
             setTileUrl(tilejsonData.tiles[0]);
