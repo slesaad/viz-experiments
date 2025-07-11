@@ -261,10 +261,11 @@ const MangroveMap = () => {
       () => filterByBboxArea(stacData, BBOX_AREA_THRESHOLD, 'lt'),
       [stacData]
     );
-
+    // Use all markers if zoom < 2, else filtered
+    const markerData = viewState.zoom < 2 ? stacData : filteredStacData;
     const markerLayer = useMemo(
-      () => createMangroveMarkers(filteredStacData, flyToBbox),
-      [filteredStacData, flyToBbox]
+      () => createMangroveMarkers(markerData, flyToBbox),
+      [markerData, flyToBbox]
     );
 
     // Create layers based on current view state and settings
@@ -291,6 +292,7 @@ const MangroveMap = () => {
     const handleViewportLoad = () => {
         setTilesLoading(false);
     };
+
 
     // Asset descriptions
     const assetDescriptions = {
