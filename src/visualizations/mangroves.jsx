@@ -104,24 +104,6 @@ const createMangroveMarkers = (data, flyToBbox) => {
     });
 };
 
-// Utility to fit bbox (returns {longitude, latitude, zoom})
-function getViewForBbox(bbox) {
-  // bbox: [west, south, east, north]
-  const [west, south, east, north] = bbox;
-  const longitude = (west + east) / 2;
-  const latitude = (south + north) / 2;
-  // Rough zoom calculation: fit bounds to viewport width (assume 800px)
-  // This is a simple approximation for Web Mercator
-  const WORLD_DIM = 256;
-  const ZOOM_MAX = 18;
-  const width = Math.abs(east - west);
-  const height = Math.abs(north - south);
-  // Prevent log(0)
-  const lngZoom = Math.log2(360 / width);
-  const latZoom = Math.log2(180 / height);
-  const zoom = Math.min(lngZoom, latZoom, ZOOM_MAX);
-  return { longitude, latitude, zoom };
-}
 
 // Configurable threshold for bbox area (in degrees^2)
 const BBOX_AREA_THRESHOLD = 10;
@@ -157,6 +139,8 @@ function setCache(key, data, ttlMs) {
   const expires = Date.now() + ttlMs;
   localStorage.setItem(key, JSON.stringify({ data, expires }));
 }
+
+
 function getCache(key) {
   const cached = localStorage.getItem(key);
   if (!cached) return null;
@@ -272,27 +256,27 @@ const MangroveMap = () => {
       fetchTileUrl();
     }, [selectedAsset]);
 
+    // Memoize filtered data and marker layer for efficiency
+    const filteredStacData = useMemo(
+      () => filterByBboxArea(stacData, BBOX_AREA_THRESHOLD, 'lt'),
+      [stacData]
+    );
+
+    const markerLayer = useMemo(
+      () => createMangroveMarkers(filteredStacData, flyToBbox),
+      [filteredStacData, flyToBbox]
+    );
+
     // Create layers based on current view state and settings
     const layers = useMemo(() => {
-        if (!showMangroves || !stacData.length) return [];
-
         const layerList = [];
-
-        // Memoize filtered data and marker layer for efficiency
-        const filteredStacData = useMemo(
-          () => filterByBboxArea(stacData, BBOX_AREA_THRESHOLD, 'lt'),
-          [stacData]
-        );
-        const markerLayer = useMemo(
-          () => createMangroveMarkers(filteredStacData, flyToBbox),
-          [filteredStacData, flyToBbox]
-        );
+        if (!showMangroves || !stacData.length) return layerList;
         if (markerLayer && viewState.zoom < ZOOM_THRESHOLD) {
             layerList.push(markerLayer.clone({ opacity }));
         }
 
         return layerList;
-    }, [stacData, viewState, showMangroves, opacity]);
+    }, [showMangroves, stacData, markerLayer, opacity, viewState.zoom]);
 
     // Tile loading handlers
     const handleViewStateChange = ({ viewState }) => {
