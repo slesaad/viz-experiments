@@ -123,14 +123,33 @@ function getViewForBbox(bbox) {
   return { longitude, latitude, zoom };
 }
 
-    // Threshold for bbox area (in degrees^2, adjust as needed)
-    const BBOX_AREA_THRESHOLD = 10;
-    // Helper to calculate bbox area
-    function bboxArea(bbox) {
-      if (!bbox || bbox.length !== 4) return 0;
-      const [west, south, east, north] = bbox;
-      return Math.abs(east - west) * Math.abs(north - south);
-    }
+// Configurable threshold for bbox area (in degrees^2)
+const BBOX_AREA_THRESHOLD = 10;
+
+/**
+ * Calculate the area of a bounding box.
+ * @param {number[]} bbox - [west, south, east, north]
+ * @returns {number} Area in degrees^2
+ */
+function bboxArea(bbox) {
+  if (!bbox || bbox.length !== 4) return 0;
+  const [west, south, east, north] = bbox;
+  return Math.abs(east - west) * Math.abs(north - south);
+}
+
+/**
+ * Filter STAC items by bbox area.
+ * @param {Array} data - Array of STAC items with bbox property.
+ * @param {number} threshold - Area threshold.
+ * @param {string} op - 'gt' for greater than, 'lt' for less than.
+ * @returns {Array} Filtered array.
+ */
+function filterByBboxArea(data, threshold, op = 'lt') {
+  return data.filter(item => {
+    const area = bboxArea(item.bbox);
+    return op === 'lt' ? area < threshold : area > threshold;
+  });
+}
 
 
 // Main component
@@ -227,9 +246,15 @@ const MangroveMap = () => {
 
         const layerList = [];
 
-        // Add marker layer (IconLayer) for all zoom levels
-        const filteredStacData = stacData.filter(item => bboxArea(item.bbox) < BBOX_AREA_THRESHOLD);
-        const markerLayer = createMangroveMarkers(filteredStacData, flyToBbox);
+        // Memoize filtered data and marker layer for efficiency
+        const filteredStacData = useMemo(
+          () => filterByBboxArea(stacData, BBOX_AREA_THRESHOLD, 'lt'),
+          [stacData]
+        );
+        const markerLayer = useMemo(
+          () => createMangroveMarkers(filteredStacData, flyToBbox),
+          [filteredStacData, flyToBbox]
+        );
         if (markerLayer && viewState.zoom < ZOOM_THRESHOLD) {
             layerList.push(markerLayer.clone({ opacity }));
         }
