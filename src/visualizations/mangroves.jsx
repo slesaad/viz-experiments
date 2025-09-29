@@ -19,10 +19,10 @@ const ZOOM_THRESHOLD = 4;
 // STAC API endpoint
 // TODO: uncomment this
 // const STAC_ENDPOINT = 'https://dev.openveda.cloud/api/stac/collections/mangrove-height-tandemx/items?limit=1500';
-const STAC_ENDPOINT = 'https://dev.ghg.center/api/stac'
-const RASTER_ENDPOINT = 'https://dev.ghg.center/api/raster'
+const STAC_ENDPOINT = 'https://earth.gov/ghgcenter/api/stac'
+const RASTER_ENDPOINT = 'https://earth.gov/ghgcenter/api/raster'
 const STAC_SEARCH_ENDPOINT = `${STAC_ENDPOINT}/search`
-const COLLECTION_NAME = 'cms-mangrove-biomass-height-v5'
+const COLLECTION_NAME = 'cms-mangrove-agb-canopyheight-grid-v1.3'
 const RESPONSE_LIMIT = 10000;
 // For local development
 // const STAC_ENDPOINT = '/assets/mangroves-stac.json'; // Local file in public/
@@ -47,7 +47,7 @@ const processSTACItems = async () => {
             },
             "limit": RESPONSE_LIMIT,
             "fields": {
-                "include": ["bbox"],
+                "include": ["bbox", "assets"],
                 "exclude": ["collection", "links"]
             }
         };
@@ -59,6 +59,9 @@ const processSTACItems = async () => {
             body: JSON.stringify(cqlFilter)
         });
         const data = await response.json();
+
+        // Save the API response to a file
+        saveResponseToFile(data, 'stac_api_response.json');
 
         return data.features.map(item => {
             const bbox = item.bbox;
