@@ -37,7 +37,7 @@ const directionalLight = new DirectionalLight({
 
 const lightingEffect = new LightingEffect({ambientLight, directionalLight});
 
-const API_KEY = 'AIzaSyCI5F0OKjg2142wxh_Rthk7xNebhq8UdAk';
+const API_KEY = import.meta.env.VITE_GOOGLE_API_KEY;
 const BUILDINGS_URL = `https://tile.googleapis.com/v1/3dtiles/root.json`;
 
 // Define your water plane size (in meters). You’ll likely make it large enough to cover the city area.
