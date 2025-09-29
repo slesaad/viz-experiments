@@ -16,6 +16,8 @@ const PlaneArcAnimation = React.lazy(() => import('./visualizations/plane-arc-an
 const PointcloudAnimation = React.lazy(() => import('./visualizations/pointcloud-animation.jsx'));
 const TilelayerInterception = React.lazy(() => import('./visualizations/tilelayer-interception.jsx'));
 const VertexInstanceBasedShaderInjection = React.lazy(() => import('./visualizations/vertex-instance-based-shader-injection.jsx'));
+const Google3D = React.lazy(() => import('./visualizations/flooding.jsx'));
+const Mesh = React.lazy(() => import('./visualizations/mesh.tsx'));
 
 const visualizations = [
   // { label: 'LAZ', component: LAZ },
@@ -30,6 +32,8 @@ const visualizations = [
   { label: 'Pointcloud Animation', path: '/pointcloud-animation', component: PointcloudAnimation },
   { label: 'Tilelayer Interception', path: '/tilelayer-interception', component: TilelayerInterception },
   { label: 'Vertex Instance Shader', path: '/vertex-instance-shader', component: VertexInstanceBasedShaderInjection },
+  { label: 'Google 3D maps', path: '/google-3d', component: Google3D },
+  { label: 'Simple Mesh layer', path: '/mesh', component: Mesh },
 ];
 
 export default function App() {
