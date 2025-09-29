@@ -60,9 +60,6 @@ const processSTACItems = async () => {
         });
         const data = await response.json();
 
-        // Save the API response to a file
-        saveResponseToFile(data, 'stac_api_response.json');
-
         return data.features.map(item => {
             const bbox = item.bbox;
             const centroid = [
