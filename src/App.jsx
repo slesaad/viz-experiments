@@ -36,7 +36,6 @@ const visualizations = [
   { label: 'Vertex Instance Shader', path: '/vertex-instance-shader', component: VertexInstanceBasedShaderInjection },
   { label: 'Google 3D maps', path: '/google-3d', component: Google3D },
   { label: 'Simple Mesh layer', path: '/mesh', component: Mesh },
-  { label: 'Simple Time Based Fragment Shader', path: '/simple-time-based-fragment-shader', component: SimpleTimeBasedFragmentShader },
   { label: 'Trips', path: '/trips', component: Trips },
   { label: 'Animated Dot', path: '/animated-dot', component: AnimatedDot },
 ];
