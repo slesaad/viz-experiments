@@ -58,7 +58,6 @@ function generateCurtainPoints(data) {
 }
 
 const points = generateCurtainPoints(curtainData);
-console.log(points)
 
 const CurtainPointCloud = new PointCloudLayer({
   id: 'curtain-pointcloud',

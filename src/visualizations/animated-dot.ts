@@ -70,7 +70,6 @@ export default class AnimatedDotLayer<DataT = any, ExtraProps extends {} = {}> e
   draw(params) {
     const {currentTime} = this.props;
     const dotProps: AnimatedDotProps = { currentTime};
-    console.log(currentTime)
     const model = this.state.model!;
     model.shaderInputs.setProps({animatedDot: dotProps});
     super.draw(params);
