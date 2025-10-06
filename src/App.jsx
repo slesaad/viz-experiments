@@ -18,6 +18,8 @@ const TilelayerInterception = React.lazy(() => import('./visualizations/tilelaye
 const VertexInstanceBasedShaderInjection = React.lazy(() => import('./visualizations/vertex-instance-based-shader-injection.jsx'));
 const Google3D = React.lazy(() => import('./visualizations/flooding.jsx'));
 const Mesh = React.lazy(() => import('./visualizations/mesh.tsx'));
+const Trips = React.lazy(() => import('./visualizations/trips.tsx'));
+const AnimatedDot = React.lazy(() => import('./visualizations/animated-dot.jsx'));
 
 const visualizations = [
   // { label: 'LAZ', component: LAZ },
@@ -34,6 +36,9 @@ const visualizations = [
   { label: 'Vertex Instance Shader', path: '/vertex-instance-shader', component: VertexInstanceBasedShaderInjection },
   { label: 'Google 3D maps', path: '/google-3d', component: Google3D },
   { label: 'Simple Mesh layer', path: '/mesh', component: Mesh },
+  { label: 'Simple Time Based Fragment Shader', path: '/simple-time-based-fragment-shader', component: SimpleTimeBasedFragmentShader },
+  { label: 'Trips', path: '/trips', component: Trips },
+  { label: 'Animated Dot', path: '/animated-dot', component: AnimatedDot },
 ];
 
 export default function App() {
