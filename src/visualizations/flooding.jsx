@@ -2,9 +2,6 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import DeckGL from '@deck.gl/react';
 import { TileLayer } from '@deck.gl/geo-layers';
 import { BitmapLayer } from '@deck.gl/layers';
-import { Tile3DLayer } from '@deck.gl/geo-layers';
-import { SimpleMeshLayer } from '@deck.gl/mesh-layers';
-import { Texture } from '@luma.gl/core';
 import SurgeWaterLayer from './WaterMesh';
 
 
@@ -73,6 +70,7 @@ function StormSurgeVisualization() {
 
   const [surgeTexture, setSurgeTexture] = useState(null);
   const [surgeTextureGPU, setSurgeTextureGPU] = useState(null);
+  const [textureUpdateTrigger, setTextureUpdateTrigger] = useState(0);
 
   const deckRef = useRef(null);
   const canvasRef = useRef(null);
@@ -119,10 +117,9 @@ function StormSurgeVisualization() {
     // Draw each tile at correct position
     console.log(`Compositing ${visibleTiles.length} tiles into canvas`);
     let tilesDrawn = 0;
-    
+
     visibleTiles.forEach((tile, index) => {
       if (!tile.image) {
-        console.log(`Tile ${index}: No image data`);
         return;
       }
 
@@ -132,20 +129,16 @@ function StormSurgeVisualization() {
       const w = ((east - west) / (maxX - minX)) * canvas.width;
       const h = ((north - south) / (maxY - minY)) * canvas.height;
 
-      console.log(`Tile ${index}:`, {
-        bbox: { west, south, east, north },
-        canvasPos: { x, y, w, h },
-        imageSize: { width: tile.image.width, height: tile.image.height }
-      });
-
       ctx.drawImage(tile.image, x, y, w, h);
       tilesDrawn++;
     });
 
     console.log(`Drew ${tilesDrawn} tiles to canvas`);
 
-    // Convert canvas to texture
+
+    // Set the canvas and trigger texture update
     setSurgeTexture(canvas);
+    setTextureUpdateTrigger(prev => prev + 1);
 
     // Copy to debug canvas
     const debugCanvas = document.getElementById('debug-canvas');
@@ -158,67 +151,48 @@ function StormSurgeVisualization() {
   }, [visibleTiles]);
 
   useEffect(() => {
-    if (!surgeTexture) return; // wait for canvas compositing
-
+    if (!surgeTexture) return; // HTMLCanvasElement or ImageBitmap
     const deck = deckRef.current?.deck;
-    if (!deck) return;
-
-    const device = deck.device;
+    const device = deck?.device;
     if (!device) return;
 
-    // Create new GPU texture
+
+
+    // 1. Create empty GPU texture
     const texture = device.createTexture({
       label: 'surge-texture',
-      data: surgeTexture,
-      format: 'rgb8unorm-webgl',
-      mipmaps: false,
-      parameters: {
-        [glContext.TEXTURE_MIN_FILTER]: glContext.LINEAR,
-        [glContext.TEXTURE_MAG_FILTER]: glContext.LINEAR,
-        [glContext.TEXTURE_WRAP_S]: glContext.CLAMP_TO_EDGE,
-        [glContext.TEXTURE_WRAP_T]: glContext.CLAMP_TO_EDGE
-      },
-      sampler: {
-        minFilter: 'linear',
-        magFilter: 'linear',
-        addressModeU: 'clamp-to-edge',
-        addressModeV: 'clamp-to-edge'
-      }
-    });
-
-    // Debug: Log texture creation
-    console.log('Texture created:', {
+      format: 'rgba8unorm',          // ✅ same as IconManager
       width: surgeTexture.width,
       height: surgeTexture.height,
-      format: 'rgb8unorm-webgl',
-      texture: texture
+      sampler: {
+        minFilter: 'linear',         // ✅ same as IconManager DEFAULT_SAMPLER_PARAMETERS
+        magFilter: 'linear',
+        mipmapFilter: 'linear',
+        addressModeU: 'clamp-to-edge',
+        addressModeV: 'clamp-to-edge'
+      },
+      mipmaps: true                  // ✅ allow mipmap regen
     });
 
-    // Debug: Check if device has queue and is valid
-    console.log('Device info:', {
-      hasQueue: !!device.queue,
-      device: device,
-      deviceType: typeof device
+    // 2. Upload the actual canvas/image into it
+    texture.copyExternalImage({
+      image: surgeTexture,           // HTMLCanvasElement
+      x: 0,
+      y: 0,
+      width: surgeTexture.width,
+      height: surgeTexture.height
     });
 
-    // Simple texture validation - just check if it was created successfully
-    if (texture) {
-      console.log('✅ GPU Texture created successfully');
-      console.log('Texture properties:', {
-        width: surgeTexture.width,
-        height: surgeTexture.height,
-        format: 'rgb8unorm-webgl'
-      });
-    } else {
-      console.error('❌ Failed to create GPU texture');
-    }
+    // 3. Regenerate mipmaps (same as IconManager)
+    // @ts-expect-error v9 missing types
+    texture.generateMipmap?.();
 
-    console.log("setting texture")
-    console.log(texture)
-
+    console.log("Surge texture created", texture);
     setSurgeTextureGPU(texture);
+
     return () => texture.destroy();
-  }, [surgeTexture, deckRef]);
+  }, [surgeTexture, textureUpdateTrigger]);
+
 
 
   useEffect(() => {
@@ -329,7 +303,7 @@ function StormSurgeVisualization() {
       data: [{ position: [0, 0, 0] }],
       mesh: waterMesh,
       getPosition: d => d.position,
-      getColor: d => [255, 0, 0, 255],
+      // getColor: d => [255, 0, 0, 255],
       coordinateSystem: 1, // LNGLAT
 
       _instanced: false,

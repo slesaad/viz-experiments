@@ -1,127 +1,9 @@
 import { SimpleMeshLayer, SimpleMeshLayerProps } from '@deck.gl/mesh-layers';
 import { AccessorFunction, DefaultProps } from '@deck.gl/core';
 import { surgeWaterUniforms, SurgeWaterProps } from './water-mesh-uniforms';
-import type {Texture} from '@luma.gl/core';
-
-const vertexShader = `#version 300 es
-#define SHADER_NAME surge-water-vertex
-
-// These are provided by deck.gl automatically
-in vec3 positions;
-in vec3 normals;
-in vec2 texCoords;
-in vec3 instancePositions;
-in vec3 instancePositions64Low;
-
-uniform sampler2D surgeTexture;
-
-out vec2 vTexCoord;
-out vec3 vNormal;
-out vec3 vPosition;
-out float vSurgeDepth;
-out vec3 vColor;
-
-float colorToSurgeHeight(vec3 color) {
-  float r = color.r;
-  float g = color.g;
-  float b = color.b;
-
-  if (b > 0.7 && r < 0.4 && g < 0.6) return 0.45;
-  if (r > 0.7 && g > 0.7 && b < 0.4) return 1.35;
-  if (r > 0.7 && g > 0.4 && g < 0.8 && b < 0.4) return 2.25;
-  if (r > 0.7 && g < 0.4 && b < 0.4) return 3.5;
-
-  return 0.0;
-}
-
-void main() {
-  vTexCoord = texCoords;
-
-  vec3 surgeColor = vec3(0.0);
-  float surgeDepth = 0.0;
-
-  if (surgeWater.hasSurgeData) {
-    surgeColor = texture(surgeTexture, texCoords).rgb;
-    surgeDepth = colorToSurgeHeight(surgeColor);
-  }
-
-  vSurgeDepth = surgeDepth;
-  vColor = surgeColor;
-
-  // Start with mesh vertex position
-  vec3 pos = positions;
-
-  // Wave pattern
-  float wave = 0.0;
-  if (surgeDepth > 0.01) {
-    wave = sin(pos.x * surgeWater.waveFrequency + surgeWater.time)
-         * cos(pos.y * surgeWater.waveFrequency * 0.7 + surgeWater.time * 0.8);
-    wave *= surgeWater.waveHeight;
-  }
-
-  // Apply surge depth and wave to z coordinate
-  pos.z += surgeDepth + wave;
-
-  // Apply instance position
-  pos += instancePositions;
-
-  vPosition = pos;
-
-  // Calculate normal for lighting
-  vec3 dx = vec3(1.0, 0.0, cos(pos.x * surgeWater.waveFrequency + surgeWater.time) * surgeWater.waveHeight);
-  vec3 dy = vec3(0.0, 1.0, cos(pos.y * surgeWater.waveFrequency * 0.7 + surgeWater.time * 0.8) * surgeWater.waveHeight);
-  vNormal = normalize(cross(dx, dy));
-
-  // Use deck.gl projection
-  gl_Position = project_common_position_to_clipspace(vec4(pos, 1.0));
-}
-`;
-
-const fragmentShader = `#version 300 es
-#define SHADER_NAME surge-water-fragment
-precision highp float;
-
-in vec2 vTexCoord;
-in vec3 vNormal;
-in vec3 vPosition;
-in float vSurgeDepth;
-in vec3 vColor;
-
-out vec4 fragColor;
-
-void main() {
-  // Uncomment to hide non-surge areas
-  // if (vSurgeDepth < 0.01) discard;
-
-  vec3 normal = normalize(vNormal);
-  vec3 lightDir = normalize(vec3(0.5, 0.5, 1.0));
-  float diffuse = max(dot(normal, lightDir), 0.0);
-
-  vec3 viewDir = normalize(vec3(0.0, 0.0, 1.0));
-  float fresnel = pow(1.0 - max(dot(viewDir, normal), 0.0), 3.0);
-
-  float depthFactor = clamp(vSurgeDepth / 3.0, 0.0, 1.0);
-  vec3 color = mix(surgeWater.shallowWaterColor, surgeWater.deepWaterColor, depthFactor);
-
-  // Mix in surge color for visualization
-  color = mix(color, vColor, 0.15);
-
-  // Specular highlights
-  vec3 reflectDir = reflect(-lightDir, normal);
-  float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32.0);
-  color = color * (0.5 + diffuse * 0.5) + vec3(spec * 0.6);
-  color = mix(color, vec3(0.9, 0.95, 1.0), fresnel * 0.25);
-
-  // Foam on waves
-  float foam = smoothstep(0.15, 0.25, vPosition.z) * 0.4;
-  color = mix(color, vec3(1.0), foam);
-
-  float finalOpacity = surgeWater.opacity * (0.75 + depthFactor * 0.25);
-
-  // Final color
-  fragColor = vec4(color, finalOpacity);
-}
-`;
+import type { Texture } from '@luma.gl/core';
+import vs from './water-mesh-vertex.glsl';
+import fs from './water-mesh-fragment.glsl';
 
 export type _SurgeWaterProps = SurgeWaterProps & SimpleMeshLayerProps;
 
@@ -129,12 +11,68 @@ export default class SurgeWaterLayer extends SimpleMeshLayer<_SurgeWaterProps> {
   getShaders() {
     // Get the parent shaders
     const shaders = super.getShaders();
+    shaders.inject = {
+      // 'vs:#decl': `\
+      //   out vec2 vTexCoord;
+      // `,
+      // 'vs:#main-end': `\
+      //   vTexCoord = uv;
+      // `,
+      'fs:#decl': `\
+        uniform sampler2D surgeTexture;
+      `,
+      'fs:#main-end': `\
+        vec4 texColor = texture(surgeTexture, vTexCoord);
+        fragColor = vec4(255.0, 0.0, 0.0, 255.0);
+        fragColor = texColor;
+      `
+    };
+
+    // shaders.inject = {
+    //   'vs:#main-end': `\
+    //     // Calculate wave displacement
+    //     vec3 waveDisplacement = calculateWaveDisplacement(pos, surgeWater.time);
+    //     vec3 displacedPos = pos + waveDisplacement;
+
+    //     // Store wave height for fragment shader
+    //     vWaveHeight = waveDisplacement.z;
+    //     vWorldPosition = displacedPos;
+
+    //     // Project position
+    //     vec3 projectedPosition = project_position(displacedPos);
+    //     position_commonspace = vec4(projectedPosition, 1.0);
+    //     gl_Position = project_common_position_to_clipspace(position_commonspace);
+
+    //     geometry.position = position_commonspace;
+
+    //     // Calculate modified normals for wave surface
+    //     vec3 waveNormal = calculateWaveNormal(pos, surgeWater.time);
+    //     normals_commonspace = project_normal(instanceModelMatrix * waveNormal);
+    //     geometry.normal = normals_commonspace;
+    //   `,
+    //   'fs:#decl': `\
+    //     in vec2 vTexCoord;
+    //     in float vSurgeDepth;
+    //     uniform sampler2D surgeTexture;
+    //   `,
+    //   'fs:DECKGL_FILTER_COLOR': `\
+    //     vec3 texColor = texture(surgeTexture, vTexCoord).rgb;
+
+    //     // Mix with existing color
+    //     fragColor.rgb = mix(fragColor.rgb, texColor, 0.15);
+
+    //     // Optionally modulate opacity by surge depth
+    //     fragColor.a *= (0.75 + clamp(vSurgeDepth / 3.0, 0.0, 1.0) * 0.25);
+    //   `,
+    // };
+
     shaders.modules = [...shaders.modules, surgeWaterUniforms];
+    // return shaders;
     // Inject custom shader code
     return {
       ...shaders,
-      vs: vertexShader,
-      fs: fragmentShader,
+      // vs: vs,
+      // fs: fs,
     };
   }
 
