@@ -20,6 +20,8 @@ const Google3D = React.lazy(() => import('./visualizations/flooding.jsx'));
 const Mesh = React.lazy(() => import('./visualizations/mesh.tsx'));
 const Trips = React.lazy(() => import('./visualizations/trips.tsx'));
 const AnimatedDot = React.lazy(() => import('./visualizations/animated-dot.jsx'));
+const StormSurgeVisualization = React.lazy(() => import('./visualizations/storm.jsx'));
+const CustomMesh = React.lazy(() => import('./visualizations/custom-mesh.jsx'));
 
 const visualizations = [
   // { label: 'LAZ', component: LAZ },
@@ -38,6 +40,8 @@ const visualizations = [
   { label: 'Simple Mesh layer', path: '/mesh', component: Mesh },
   { label: 'Trips', path: '/trips', component: Trips },
   { label: 'Animated Dot', path: '/animated-dot', component: AnimatedDot },
+  { label: 'Storm', path: '/storm', component: StormSurgeVisualization },
+  { label: 'Custom Mesh', path: '/custom-mesh', component: CustomMesh },
 ];
 
 export default function App() {
