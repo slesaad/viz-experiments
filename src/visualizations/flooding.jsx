@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import DeckGL from '@deck.gl/react';
-import { TileLayer } from '@deck.gl/geo-layers';
+import { TileLayer, Tile3DLayer } from '@deck.gl/geo-layers';
 import { BitmapLayer } from '@deck.gl/layers';
 import SurgeWaterLayer from './WaterMesh';
 
@@ -300,7 +300,7 @@ function StormSurgeVisualization() {
 
     return new SurgeWaterLayer({
       id: 'surge-water-mesh',
-      data: [{ position: [0, 0, 0] }],
+      data: [{ position: [0, 0, 10] }],
       mesh: waterMesh,
       getPosition: d => d.position,
       // getColor: d => [255, 0, 0, 255],
@@ -308,11 +308,12 @@ function StormSurgeVisualization() {
 
       _instanced: false,
 
-      // parameters: {
-      //   depthTest: true,
-      //   blend: true,
-      //   blendFunc: ['SRC_ALPHA', 'ONE_MINUS_SRC_ALPHA']
-      // },
+      parameters: {
+        depthTest: true,
+        blend: true,
+        // blendFunc: ['SRC_ALPHA', 'ONE_MINUS_SRC_ALPHA'],
+        // blendEquation: 'FUNC_ADD'
+      },
 
       time: time / 1000,
       waveHeight: 0.15,
@@ -337,24 +338,24 @@ function StormSurgeVisualization() {
   }, [time, waterMesh, surgeTexture, meshBounds]);
 
   // Google 3D Tiles layer
-  // const buildingsLayer = useMemo(() => {
-  //   return new Tile3DLayer({
-  //     id: 'google-3d-tiles',
-  //     data: 'https://tile.googleapis.com/v1/3dtiles/root.json',
-  //     loadOptions: {
-  //       fetch: {
-  //         headers: {
-  //           'X-GOOG-API-KEY': GOOGLE_MAPS_API_KEY
-  //         }
-  //       }
-  //     },
-  //     opacity: 0.9,
-  //     pointSize: 2
-  //   });
-  // }, []);
+  const buildingsLayer = useMemo(() => {
+    return new Tile3DLayer({
+      id: 'google-3d-tiles',
+      data: 'https://tile.googleapis.com/v1/3dtiles/root.json',
+      loadOptions: {
+        fetch: {
+          headers: {
+            'X-GOOG-API-KEY': GOOGLE_MAPS_API_KEY
+          }
+        }
+      },
+      opacity: 0.9,
+      pointSize: 2
+    });
+  }, []);
 
-  // const layers = [buildingsLayer, wmtsLayer, waterLayer].filter(Boolean);
-  const layers = [wmtsLayer, waterLayer].filter(Boolean);
+  const layers = [buildingsLayer, wmtsLayer, waterLayer].filter(Boolean);
+  // const layers = [wmtsLayer, waterLayer].filter(Boolean);
 
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
