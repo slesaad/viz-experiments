@@ -28,7 +28,6 @@
     "deck.gl": "^9.1.14",
     "geoarrow-wasm": "^0.1.0",
     "loaders.gl": "^0.3.5",
-    "luma.gl": "^7.3.2",
     "mapbox-gl": "^3.13.0",
     "papaparse": "^5.5.2",
     "react": "^18.0.0",
