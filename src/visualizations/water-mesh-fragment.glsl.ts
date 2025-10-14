@@ -21,6 +21,30 @@ in vec3 vPosition;
 
 out vec4 fragColor;
 
+// Tiny high-frequency shimmer using sin — no geometry movement
+float shimmer(vec2 p) {
+  return sin(p.x * 60.0 + surgeWater.time * 8.0) * cos(p.y * 60.0 + surgeWater.time * 6.0);  // Y ripples
+}
+
+// Simple hash-based noise (cheap and branchless)
+float hash(vec2 p) {
+  return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+}
+
+float noise(vec2 p){
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+
+  float a = hash(i);
+  float b = hash(i + vec2(1.0, 0.0));
+  float c = hash(i + vec2(0.0, 1.0));
+  float d = hash(i + vec2(1.0, 1.0));
+
+  vec2 u = f * f * (3.0 - 2.0 * f);
+
+  return mix(a, b, u.x) + (c - a)*u.y*(1.0 - u.x) + (d - b)*u.x*u.y;
+}
+
 void main(void) {
 
   // World-space ripple pattern
@@ -46,8 +70,18 @@ void main(void) {
   vec3 N = normalize(vNormal);
   vec3 L = normalize(vec3(0.3, 0.5, 1.0)); // directional light
   float diffuse = max(dot(N, L), 0.0);
+  float fresnel = pow(1.0 - max(dot(N, normalize(-vPosition)), 0.0), 3.0);
 
-  vec4 color = simpleMesh.hasTexture ? texture(sampler, vTexCoord) : vec4(waterColor * (0.6 + 0.4 * diffuse), surgeWater.opacity);
+  // High-frequency ripples — tweak 20.0 / 40.0 to adjust scale/speed
+  // float ripple = noise(vPosition.xy * 20.0 + surgeWater.time * 5.0) * 0.05; // Small amplitude
+  // vec3 rippleColor = vec3(ripple);
+
+  // Gentle glint — small amplitude, don't change whole surface
+  float s = shimmer(vPosition.xy) * 0.015;
+  // Blend
+  vec3 finalColor = surgeWater.shallowWaterColor + vec3(s) + fresnel * 0.05;
+
+  vec4 color = simpleMesh.hasTexture ? texture(sampler, vTexCoord) : vec4(finalColor, surgeWater.opacity);
   DECKGL_FILTER_COLOR(color, geometry);
 
   vec3 lightColor = lighting_getLightColor(color.rgb, cameraPosition, position_commonspace.xyz, N);
