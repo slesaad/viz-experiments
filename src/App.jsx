@@ -16,7 +16,7 @@ const PlaneArcAnimation = React.lazy(() => import('./visualizations/plane-arc-an
 const PointcloudAnimation = React.lazy(() => import('./visualizations/pointcloud-animation.jsx'));
 const TilelayerInterception = React.lazy(() => import('./visualizations/tilelayer-interception.jsx'));
 const VertexInstanceBasedShaderInjection = React.lazy(() => import('./visualizations/vertex-instance-based-shader-injection.jsx'));
-const Google3D = React.lazy(() => import('./visualizations/flooding.jsx'));
+const Google3D = React.lazy(() => import('./visualizations/storm-surge/flooding.jsx'));
 const Mesh = React.lazy(() => import('./visualizations/mesh.tsx'));
 const Trips = React.lazy(() => import('./visualizations/trips.tsx'));
 const AnimatedDot = React.lazy(() => import('./visualizations/animated-dot.jsx'));
