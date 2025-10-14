@@ -316,7 +316,7 @@ function StormSurgeVisualization() {
       },
 
       time: time / 1000,
-      waveHeight: 0.15,
+      waveHeight: 1.0,
       waveFrequency: 80,
       surgeTexture: surgeTextureGPU,
       hasSurgeData: !!surgeTextureGPU,
