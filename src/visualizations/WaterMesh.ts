@@ -11,68 +11,38 @@ export default class SurgeWaterLayer extends SimpleMeshLayer<_SurgeWaterProps> {
   getShaders() {
     // Get the parent shaders
     const shaders = super.getShaders();
+
     shaders.inject = {
-      // 'vs:#decl': `\
-      //   out vec2 vTexCoord;
+      // 'vs:DECKGL_FILTER_GL_POSITION': `
+      //   // Compute ripple displacement
+      //   float ripple = sin(position.x * surgeWater.waveFrequency + surgeWater.time * 0.5) *
+      //                  cos(position.y * surgeWater.waveFrequency + surgeWater.time * 0.5);
+      //   // Apply wave height
+      //   // gl_Position.z += ripple * surgeWater.waveHeight * 0.1;
+      //   gl_Position.xyz += vec3(0.2, 0.5, 0.0);
       // `,
-      // 'vs:#main-end': `\
-      //   vTexCoord = uv;
+      // 'fs:#decl': `
+      //   in vec3 ripplePos;
       // `,
-      'fs:#decl': `\
-        uniform sampler2D surgeTexture;
-      `,
-      'fs:#main-end': `\
-        vec4 texColor = texture(surgeTexture, vTexCoord);
-        fragColor = vec4(255.0, 0.0, 0.0, 255.0);
-        fragColor = texColor;
+      'fs:DECKGL_FILTER_COLOR': `
+        // Recompute same ripple value in fragment to interpolate colors
+        float ripple = sin(geometry.uv.x * surgeWater.waveFrequency + surgeWater.time * 0.5) *
+                       cos(geometry.uv.y * surgeWater.waveFrequency + surgeWater.time * 0.5);
+
+        // Mix shallow and deep colors based on wave
+        vec3 waterColor = mix(vec3(surgeWater.deepWaterColor), vec3(surgeWater.shallowWaterColor), ripple * 0.5 + 0.5);
+
+        color = vec4(waterColor, surgeWater.opacity);
       `
-    };
-
-    // shaders.inject = {
-    //   'vs:#main-end': `\
-    //     // Calculate wave displacement
-    //     vec3 waveDisplacement = calculateWaveDisplacement(pos, surgeWater.time);
-    //     vec3 displacedPos = pos + waveDisplacement;
-
-    //     // Store wave height for fragment shader
-    //     vWaveHeight = waveDisplacement.z;
-    //     vWorldPosition = displacedPos;
-
-    //     // Project position
-    //     vec3 projectedPosition = project_position(displacedPos);
-    //     position_commonspace = vec4(projectedPosition, 1.0);
-    //     gl_Position = project_common_position_to_clipspace(position_commonspace);
-
-    //     geometry.position = position_commonspace;
-
-    //     // Calculate modified normals for wave surface
-    //     vec3 waveNormal = calculateWaveNormal(pos, surgeWater.time);
-    //     normals_commonspace = project_normal(instanceModelMatrix * waveNormal);
-    //     geometry.normal = normals_commonspace;
-    //   `,
-    //   'fs:#decl': `\
-    //     in vec2 vTexCoord;
-    //     in float vSurgeDepth;
-    //     uniform sampler2D surgeTexture;
-    //   `,
-    //   'fs:DECKGL_FILTER_COLOR': `\
-    //     vec3 texColor = texture(surgeTexture, vTexCoord).rgb;
-
-    //     // Mix with existing color
-    //     fragColor.rgb = mix(fragColor.rgb, texColor, 0.15);
-
-    //     // Optionally modulate opacity by surge depth
-    //     fragColor.a *= (0.75 + clamp(vSurgeDepth / 3.0, 0.0, 1.0) * 0.25);
-    //   `,
-    // };
+    }
 
     shaders.modules = [...shaders.modules, surgeWaterUniforms];
     // return shaders;
     // Inject custom shader code
     return {
       ...shaders,
-      // vs: vs,
-      // fs: fs,
+      vs: vs,
+      fs: fs,
     };
   }
 
