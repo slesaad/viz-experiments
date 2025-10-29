@@ -46,46 +46,41 @@ float noise(vec2 p){
 }
 
 void main(void) {
-
-  // World-space ripple pattern
-  float ripple = sin(vPosition.x * surgeWater.waveFrequency + surgeWater.time * 0.5) * cos(vPosition.y * surgeWater.waveFrequency * 0.8 + surgeWater.time * 0.7);
-
-  ripple *= surgeWater.waveHeight * 0.5; // control intensity
-
-  // Blend ripple into water color
-  float t = ripple * 0.5 + 0.5; // normalize [-1,1] to [0,1]
-  vec3 waterColor = mix(surgeWater.deepWaterColor, surgeWater.shallowWaterColor, t);
-
   geometry.uv = vTexCoord;
 
-  vec3 normal;
-  if (simpleMesh.flatShading) {
-
-  normal = normalize(cross(dFdx(position_commonspace.xyz), dFdy(position_commonspace.xyz)));
-  } else {
-    normal = normals_commonspace;
-  }
-
-  // Basic normal-based lighting
+  // Use the normal from vertex shader
   vec3 N = normalize(vNormal);
-  vec3 L = normalize(vec3(0.3, 0.5, 1.0)); // directional light
-  float diffuse = max(dot(N, L), 0.0);
-  float fresnel = pow(1.0 - max(dot(N, normalize(-vPosition)), 0.0), 3.0);
 
-  // High-frequency ripples — tweak 20.0 / 40.0 to adjust scale/speed
-  // float ripple = noise(vPosition.xy * 20.0 + surgeWater.time * 5.0) * 0.05; // Small amplitude
-  // vec3 rippleColor = vec3(ripple);
+  // Lighting direction (sun)
+  vec3 lightDir = normalize(vec3(0.5, 0.5, 1.0));
 
-  // Gentle glint — small amplitude, don't change whole surface
-  float s = shimmer(vPosition.xy) * 0.015;
-  // Blend
-  vec3 finalColor = surgeWater.shallowWaterColor + vec3(s) + fresnel * 0.05;
+  // View direction for specular
+  vec3 viewDir = normalize(cameraPosition - vPosition);
 
-  vec4 color = simpleMesh.hasTexture ? texture(sampler, vTexCoord) : vec4(finalColor, surgeWater.opacity);
-  DECKGL_FILTER_COLOR(color, geometry);
+  // Diffuse lighting
+  float diffuse = max(dot(N, lightDir), 0.0);
+  float ambient = 0.3; // Ambient light so we can see everything
 
-  vec3 lightColor = lighting_getLightColor(color.rgb, cameraPosition, position_commonspace.xyz, N);
-  fragColor = vec4(lightColor, color.a * layer.opacity);
-  fragColor = vColor;
+  // Specular highlight - sharper and brighter
+  vec3 halfVector = normalize(lightDir + viewDir);
+  float specular = pow(max(dot(N, halfVector), 0.0), 64.0); // Higher power = sharper highlight
+
+  // Fresnel effect (edges more reflective)
+  float fresnel = pow(1.0 - max(dot(N, viewDir), 0.0), 4.0);
+
+  // Use height-based coloring: peaks = shallow, valleys = deep
+  // Use lighting intensity to determine peaks vs valleys
+  float heightFactor = diffuse; // Bright areas are peaks, dark are valleys
+  heightFactor = smoothstep(0.3, 0.7, heightFactor); // Sharp transition
+
+  // Mix between deep (valleys) and shallow (peaks) based on lighting
+  vec3 waterColor = mix(surgeWater.deepWaterColor, surgeWater.shallowWaterColor, heightFactor);
+
+  // Apply lighting - color already incorporates height via diffuse
+  vec3 finalColor = waterColor * ambient + waterColor; // Base color + some ambient
+  finalColor += specular * vec3(1.0, 1.0, 1.0) * 2.0; // Bright white specular highlights
+  finalColor += fresnel * vec3(0.7, 0.8, 0.9) * 0.5; // Sky reflection
+
+  fragColor = vec4(finalColor, surgeWater.opacity);
 }
 `;

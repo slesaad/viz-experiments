@@ -319,14 +319,15 @@ function StormSurgeVisualization() {
       },
 
       time: time / 1000,
-      waveHeight: 1.0,
+      waveHeight: 2.0,
       waveFrequency: 80,
       surgeTexture: surgeTextureGPU,
       hasSurgeData: !!surgeTextureGPU,
       opacity: 0.8,
-      shallowWaterColor: [0.4, 0.75, 0.85],
-      deepWaterColor: [0.1, 0.3, 0.5],
+      shallowWaterColor: [0, 0.2, 1.0], //[0.15, 0.25, 0.35],
+      deepWaterColor: [0, 0.0 , 1.0], //[0.05, 0.1, 0.15],
       textureBounds: textureBounds,
+      // wireframe: true,
 
       material: {
         ambient: 0.2,
