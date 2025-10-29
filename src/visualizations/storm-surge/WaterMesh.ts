@@ -60,6 +60,7 @@ export default class SurgeWaterLayer extends SimpleMeshLayer<_SurgeWaterProps> {
       deepWaterColor: this.props.deepWaterColor || [0.1, 0.3, 0.5],
       hasSurgeData: !!this.props.surgeTexture,
       surgeTexture: this.props.surgeTexture as Texture,
+      textureBounds: this.props.textureBounds || [0, 0, 0, 0],
     };
 
     const model = this.state.model!;

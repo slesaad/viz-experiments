@@ -40,10 +40,12 @@ float colorToSurgeHeight(vec3 color) {
   float g = color.g;
   float b = color.b;
 
-  if (b > 0.7 && r < 0.4 && g < 0.6) return 0.45;
-  if (r > 0.7 && g > 0.7 && b < 0.4) return 1.35;
-  if (r > 0.7 && g > 0.4 && g < 0.8 && b < 0.4) return 2.25;
-  if (r > 0.7 && g < 0.4 && b < 0.4) return 3.5;
+  float offset = 5.0;
+
+  if (b > 0.7 && r < 0.4 && g < 0.6) return (0.0);
+  if (r > 0.7 && g > 0.7 && b < 0.4) return (1.35 + offset);
+  if (r > 0.7 && g > 0.4 && g < 0.8 && b < 0.4) return (2.25 + offset);
+  if (r > 0.7 && g < 0.4 && b < 0.4) return (3.5 + offset);
 
   return 0.0;
 }
@@ -59,7 +61,23 @@ void main(void) {
   float surgeDepth = 0.0;
 
   if (surgeWater.hasSurgeData) {
-    surgeColor = texture(surgeTexture, texCoords).rgb;
+    // Map mesh geographic position to texture coordinates
+    // textureBounds = vec4(minX, minY, maxX, maxY)
+    float minX = surgeWater.textureBounds.x;
+    float minY = surgeWater.textureBounds.y;
+    float maxX = surgeWater.textureBounds.z;
+    float maxY = surgeWater.textureBounds.w;
+
+    // positions contains the geographic coordinates (lng, lat, z)
+    float lng = positions.x;
+    float lat = positions.y;
+
+    // Calculate normalized texture coordinates based on position within texture bounds
+    float u = (lng - minX) / (maxX - minX);
+    float v = (lat - minY) / (maxY - minY);
+
+    // Sample texture with corrected coordinates (flip Y for proper orientation)
+    surgeColor = texture(surgeTexture, vec2(u, 1.0 - v)).rgb;
     surgeDepth = colorToSurgeHeight(surgeColor);
   }
 

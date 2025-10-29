@@ -14,6 +14,7 @@ uniform surgeWaterUniforms {
   vec3 shallowWaterColor;
   vec3 deepWaterColor;
   bool hasSurgeData;
+  vec4 textureBounds;
 } surgeWater;
 `;
 
@@ -26,6 +27,7 @@ export type SurgeWaterProps = {
   deepWaterColor: [number, number, number];
   hasSurgeData: boolean;
   surgeTexture: Texture;
+  textureBounds: [number, number, number, number];
 };
 
 export const surgeWaterUniforms = {
@@ -40,5 +42,6 @@ export const surgeWaterUniforms = {
       shallowWaterColor: 'vec3<f32>',
       deepWaterColor: 'vec3<f32>',
       hasSurgeData: 'f32',
+      textureBounds: 'vec4<f32>',
     }
 } as const satisfies ShaderModule<SurgeWaterProps>;

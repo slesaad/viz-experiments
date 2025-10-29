@@ -71,6 +71,7 @@ function StormSurgeVisualization() {
   const [surgeTexture, setSurgeTexture] = useState(null);
   const [surgeTextureGPU, setSurgeTextureGPU] = useState(null);
   const [textureUpdateTrigger, setTextureUpdateTrigger] = useState(0);
+  const [textureBounds, setTextureBounds] = useState([0, 0, 0, 0]);
 
   const deckRef = useRef(null);
   const canvasRef = useRef(null);
@@ -135,6 +136,8 @@ function StormSurgeVisualization() {
 
     console.log(`Drew ${tilesDrawn} tiles to canvas`);
 
+    // Store texture bounds for shader
+    setTextureBounds([minX, minY, maxX, maxY]);
 
     // Set the canvas and trigger texture update
     setSurgeTexture(canvas);
@@ -323,10 +326,7 @@ function StormSurgeVisualization() {
       opacity: 0.8,
       shallowWaterColor: [0.4, 0.75, 0.85],
       deepWaterColor: [0.1, 0.3, 0.5],
-      // tileBounds: [
-      //   [meshBounds.west, meshBounds.south],
-      //   [meshBounds.east, meshBounds.north]
-      // ],
+      textureBounds: textureBounds,
 
       material: {
         ambient: 0.2,
@@ -335,7 +335,7 @@ function StormSurgeVisualization() {
         specularColor: [60, 64, 70]
       },
     });
-  }, [time, waterMesh, surgeTexture, meshBounds]);
+  }, [time, waterMesh, surgeTexture, meshBounds, textureBounds, surgeTextureGPU]);
 
   // Google 3D Tiles layer
   const buildingsLayer = useMemo(() => {

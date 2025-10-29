@@ -86,5 +86,6 @@ void main(void) {
 
   vec3 lightColor = lighting_getLightColor(color.rgb, cameraPosition, position_commonspace.xyz, N);
   fragColor = vec4(lightColor, color.a * layer.opacity);
+  fragColor = vColor;
 }
 `;
