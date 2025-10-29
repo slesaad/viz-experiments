@@ -114,16 +114,17 @@ export default class ParticleAdvectionLayer<DataT = ParticleData> extends Layer<
         },
       }),
       isInstanced: true,
-      // parameters: {
-      //   blend: true,
-      //   blendColorOperation: 'add',
-      //   blendColorSrcFactor: 'src-alpha',
-      //   blendColorDstFactor: 'one-minus-src-alpha',
-      //   blendAlphaOperation: 'add',
-      //   blendAlphaSrcFactor: 'one',
-      //   blendAlphaDstFactor: 'one-minus-src-alpha',
-      //   depthWriteEnabled: false,
-      // },
+      parameters: {
+        blend: true,
+        blendColorOperation: 'add',
+        blendColorSrcFactor: 'src-alpha',
+        blendColorDstFactor: 'one-minus-src-alpha',
+        blendAlphaOperation: 'add',
+        blendAlphaSrcFactor: 'one',
+        blendAlphaDstFactor: 'one-minus-src-alpha',
+        depthWriteEnabled: false,  // Don't write to depth buffer
+        depthCompare: 'always',     // Always render on top
+      },
     });
     return model;
   }

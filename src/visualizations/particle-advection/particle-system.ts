@@ -93,7 +93,7 @@ export class ParticleSystem {
 
       positions[i * 3] = lng;
       positions[i * 3 + 1] = lat;
-      positions[i * 3 + 2] = 2500; // altitude
+      positions[i * 3 + 2] = 500; // altitude
     }
 
     return positions;
