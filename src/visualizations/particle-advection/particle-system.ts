@@ -10,6 +10,7 @@ export interface Particle {
   y: number; // normalized [0, 1]
   age: number; // in frames
   maxAge: number; // maximum age before reset
+  co2Value?: number; // CO2 concentration at particle position
 }
 
 export interface ParticleSystemOptions {
@@ -110,6 +111,28 @@ export class ParticleSystem {
     }
 
     return ages;
+  }
+
+  /**
+   * Set CO2 values for all particles
+   */
+  setCO2Values(co2SampleFn: (x: number, y: number) => number): void {
+    for (const particle of this.particles) {
+      particle.co2Value = co2SampleFn(particle.x, particle.y);
+    }
+  }
+
+  /**
+   * Get particle CO2 values
+   */
+  getCO2Values(): Float32Array {
+    const co2Values = new Float32Array(this.particles.length);
+
+    for (let i = 0; i < this.particles.length; i++) {
+      co2Values[i] = this.particles[i].co2Value || 0;
+    }
+
+    return co2Values;
   }
 
   /**

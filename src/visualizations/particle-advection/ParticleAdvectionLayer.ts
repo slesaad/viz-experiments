@@ -16,21 +16,25 @@ import fs from './particle-fragment.glsl';
 export type ParticleData = {
   position: [number, number, number];
   age: number;
+  co2?: number;
 };
 
 export type ParticleAdvectionLayerProps<DataT = ParticleData> = {
   data: DataT[];
   getPosition?: Accessor<DataT, [number, number, number]>;
   getAge?: Accessor<DataT, number>;
+  getCO2?: Accessor<DataT, number>;
   particleSize?: number;
   fadeOpacity?: number;
   time?: number;
   colorScale?: [number, number, number][];
+  co2Range?: { min: number; max: number };
 } & LayerProps;
 
 const defaultProps: DefaultProps<ParticleAdvectionLayerProps> = {
   getPosition: { type: 'accessor', value: (d: ParticleData) => d.position },
   getAge: { type: 'accessor', value: (d: ParticleData) => d.age },
+  getCO2: { type: 'accessor', value: (d: ParticleData) => d.co2 || 0 },
   particleSize: { type: 'number', value: 2.0, min: 0.1, max: 100 },
   fadeOpacity: { type: 'number', value: 1.0, min: 0, max: 1 },
   time: { type: 'number', value: 0 },
@@ -43,6 +47,7 @@ const defaultProps: DefaultProps<ParticleAdvectionLayerProps> = {
     ],
     compare: false,
   },
+  co2Range: { type: 'object', value: { min: 0.0004, max: 0.00042 }, compare: false },
 };
 
 export default class ParticleAdvectionLayer<DataT = ParticleData> extends Layer<ParticleAdvectionLayerProps<DataT>> {
@@ -77,6 +82,12 @@ export default class ParticleAdvectionLayer<DataT = ParticleData> extends Layer<
         fp64: this.use64bitPositions(),
         transition: true,
         accessor: 'getAge',
+      },
+      instanceCO2: {
+        size: 1,
+        type: 'float32',
+        transition: true,
+        accessor: 'getCO2',
       },
     });
 
@@ -150,41 +161,12 @@ export default class ParticleAdvectionLayer<DataT = ParticleData> extends Layer<
   }
 
   draw(): void {
-    const { particleSize, fadeOpacity, time, colorScale } = this.props;
+    const { particleSize, fadeOpacity, time, colorScale, co2Range } = this.props;
     const { model } = this.state;
 
     if (!model) {
       return;
     }
-
-    // if (!model) return;
-
-    // // Check if we have data to draw
-    // const numInstances = this.props.data?.length ?? 0;
-    // if (numInstances === 0) return;
-
-    // // Update model with INSTANCED attributes from AttributeManager
-    // const attributeManager = this.getAttributeManager();
-    // if (!attributeManager) return;
-
-    // const attributes = attributeManager.getAttributes();
-    // const instanceBuffers: Record<string, any> = {};
-
-    // // Collect all instance attribute buffers
-    // // Note: geometry attributes (positions, texCoords) are already on the model from initialization
-    // for (const [name, attribute] of Object.entries(attributes)) {
-    //   if (attribute && attribute.value) {
-    //     instanceBuffers[name] = attribute.value;
-    //   }
-    // }
-
-    // // Only draw if we have all required instance attributes
-    // if (!instanceBuffers.instancePositions || !instanceBuffers.instanceAges) {
-    //   return;
-    // }
-
-    // // Set all instance attributes at once
-    // model.setAttributes(instanceBuffers);
 
     // Prepare uniform props
     const particleAdvectionProps: ParticleAdvectionProps = {
@@ -194,6 +176,9 @@ export default class ParticleAdvectionLayer<DataT = ParticleData> extends Layer<
       colorScale0: colorScale?.[0] ?? [0.3, 0.7, 1.0],
       colorScale1: colorScale?.[1] ?? [0.5, 0.9, 1.0],
       colorScale2: colorScale?.[2] ?? [1.0, 1.0, 1.0],
+      colorScale3: colorScale?.[3] ?? [1.0, 0.5, 0.2],
+      co2Min: co2Range?.min ?? 0.0004,
+      co2Max: co2Range?.max ?? 0.00042,
     };
 
     model.shaderInputs.setProps({

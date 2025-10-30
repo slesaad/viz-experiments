@@ -1,29 +1,29 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import DeckGL from '@deck.gl/react';
-import { Tile3DLayer } from '@deck.gl/geo-layers';
+import { TileLayer } from '@deck.gl/geo-layers';
+import { BitmapLayer } from '@deck.gl/layers';
 import { generateFakeVelocityField } from './velocity-field';
+import { generateCO2VelocityField, getCO2Metadata, sampleCO2AtNormalizedPosition, getCO2Range } from './co2-velocity-field';
 import { ParticleSystem } from './particle-system';
 import ParticleAdvectionLayer from './ParticleAdvectionLayer';
 
-const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_API_KEY;
-
 // Initial view state for the map
 const INITIAL_VIEW_STATE = {
-  longitude: -84.503,
-  latitude: 33.91,
-  zoom: 13,
-  pitch: 45,
+  longitude: -98,
+  latitude: 39,
+  zoom: 4.5,
+  pitch: 0,
   bearing: 0,
-  minZoom: 5,
+  minZoom: 3,
   maxZoom: 20
 };
 
-// Bounds for the visualization
+// Bounds for the visualization - entire continental US
 const VISUALIZATION_BOUNDS = {
-  west: -84.55,
-  south: 33.85,
-  east: -84.45,
-  north: 33.95,
+  west: -125,   // West coast
+  south: 24,    // Southern tip of Florida
+  east: -66,    // East coast
+  north: 49,    // Canadian border
 };
 
 // Velocity field resolution
@@ -86,20 +86,25 @@ export default function ParticleAdvectionVisualization() {
       return [];
     }
 
-    // Generate velocity field
-    const velocityField = generateFakeVelocityField(
+    // Generate velocity field from real CO2 data
+    const velocityField = generateCO2VelocityField(
       FIELD_WIDTH,
       FIELD_HEIGHT,
-      VISUALIZATION_BOUNDS,
-      time
+      VISUALIZATION_BOUNDS
     );
 
     // Update particle system
     particleSystemRef.current.update(velocityField, 16);
 
+    // Sample CO2 values at particle positions
+    particleSystemRef.current.setCO2Values((x, y) =>
+      sampleCO2AtNormalizedPosition(x, y, VISUALIZATION_BOUNDS)
+    );
+
     // Get raw data
     const positions = particleSystemRef.current.getPositions();
     const ages = particleSystemRef.current.getAges();
+    const co2Values = particleSystemRef.current.getCO2Values();
 
     // Convert to data array with accessor-friendly format
     const data = [];
@@ -107,11 +112,15 @@ export default function ParticleAdvectionVisualization() {
       data.push({
         position: [positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2]],
         age: ages[i],
+        co2: co2Values[i],
       });
     }
 
     return data;
   }, [time]);
+
+  // Get CO2 range for color mapping
+  const co2Range = useMemo(() => getCO2Range(), []);
 
   // Create particle layer
   const particleLayer = useMemo(() => {
@@ -120,35 +129,42 @@ export default function ParticleAdvectionVisualization() {
       data: particleData,
       getPosition: d => d.position,
       getAge: d => d.age,
+      getCO2: d => d.co2,
       particleSize,
       fadeOpacity: 0.5,
       time: time / 1000,
+      co2Range,
       colorScale: [
-        [0.3, 0.7, 1.0],  // Blue
-        [0.5, 0.9, 1.0],  // Light blue
-        [1.0, 1.0, 1.0],  // White
+        [0.1, 0.4, 0.8],  // Low CO2 - Blue
+        [0.3, 0.7, 0.5],  // Medium CO2 - Green
+        [0.9, 0.9, 0.2],  // High CO2 - Yellow
+        [1.0, 0.3, 0.1],  // Very High CO2 - Red
       ],
     });
-  }, [particleData, particleSize, time]);
+  }, [particleData, particleSize, time, co2Range]);
 
-  // Google 3D Tiles layer
-  const buildingsLayer = useMemo(() => {
-    return new Tile3DLayer({
-      id: 'google-3d-tiles',
-      data: 'https://tile.googleapis.com/v1/3dtiles/root.json',
-      loadOptions: {
-        fetch: {
-          headers: {
-            'X-GOOG-API-KEY': GOOGLE_MAPS_API_KEY
-          }
-        }
-      },
-      opacity: 0.8,
+  // Free basemap layer (CartoDB Dark Matter)
+  const basemapLayer = useMemo(() => {
+    return new TileLayer({
+      data: 'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png', //'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+      minZoom: 0,
+      maxZoom: 19,
+      tileSize: 256,
+      renderSubLayers: props => {
+        const { boundingBox: bbox, content: image } = props.tile;
+
+        if (!image) return null;
+
+        return new BitmapLayer(props, {
+          data: null,
+          image: props.data,
+          bounds: [bbox[0][0], bbox[0][1], bbox[1][0], bbox[1][1]]
+        })
+      }
     });
   }, []);
 
-  const layers = [buildingsLayer, particleLayer];
-  // const layers = [particleLayer];
+  const layers = [basemapLayer, particleLayer];
 
   return (
     <div style={{ position: 'relative', height: '100vh', width: '100%' }}>
@@ -173,7 +189,7 @@ export default function ParticleAdvectionVisualization() {
         boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
       }}>
         <h3 style={{ margin: '0 0 15px 0', fontSize: '18px' }}>
-          Particle Advection Visualization
+          CO2 Flow Visualization
         </h3>
 
         {/* Status */}
@@ -261,9 +277,9 @@ export default function ParticleAdvectionVisualization() {
           <strong style={{ color: '#2196F3' }}>Features:</strong><br />
           ✓ {NUM_PARTICLES.toLocaleString()} particles<br />
           ✓ GPU-accelerated rendering<br />
-          ✓ Vortex-based velocity field<br />
+          ✓ Real OCO-2 CO2 data (2022-02-28)<br />
           ✓ Age-based particle fading<br />
-          ✓ Smooth particle advection
+          ✓ Gradient-based flow field
         </div>
 
         {/* Info */}
@@ -273,9 +289,9 @@ export default function ParticleAdvectionVisualization() {
           lineHeight: '1.6'
         }}>
           <strong style={{ color: '#fff' }}>How it works:</strong><br />
-          • Particles follow velocity field<br />
-          • Multiple vortices create flow<br />
-          • Particles fade with age<br />
+          • Particles follow CO2 gradients<br />
+          • Flow from high to low CO2<br />
+          • Based on satellite data<br />
           • Real-time GPU rendering
         </div>
       </div>
@@ -291,7 +307,8 @@ export default function ParticleAdvectionVisualization() {
         color: 'white',
         fontSize: '11px',
       }}>
-        Velocity Field: {FIELD_WIDTH}x{FIELD_HEIGHT}<br />
+        OCO-2 CO2 Data (Feb 28, 2022)<br />
+        Field Resolution: {FIELD_WIDTH}x{FIELD_HEIGHT}<br />
         FPS: ~{(1000 / 16).toFixed(0)}
       </div>
     </div>
