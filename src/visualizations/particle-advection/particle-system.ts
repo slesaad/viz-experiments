@@ -11,6 +11,8 @@ export interface Particle {
   age: number; // in frames
   maxAge: number; // maximum age before reset
   co2Value?: number; // CO2 concentration at particle position
+  vx: number; // velocity x component
+  vy: number; // velocity y component
 }
 
 export interface ParticleSystemOptions {
@@ -47,6 +49,8 @@ export class ParticleSystem {
       y: Math.random(),
       age: 0,
       maxAge: this.minAge + Math.random() * (this.maxAge - this.minAge),
+      vx: 0,
+      vy: 0,
     };
   }
 
@@ -55,6 +59,8 @@ export class ParticleSystem {
     particle.y = Math.random();
     particle.age = 0;
     particle.maxAge = this.minAge + Math.random() * (this.maxAge - this.minAge);
+    particle.vx = 0;
+    particle.vy = 0;
   }
 
   update(
@@ -65,6 +71,10 @@ export class ParticleSystem {
     for (const particle of this.particles) {
       // Sample velocity at particle position
       const [u, v] = sampleVelocity(velocityField, particle.x, particle.y);
+
+      // Store velocity for rendering (for wispy trails)
+      particle.vx = u;
+      particle.vy = v;
 
       // Update position using Euler integration
       const speed = this.speedMultiplier * dt * 0.001;
@@ -120,6 +130,20 @@ export class ParticleSystem {
     }
 
     return ages;
+  }
+
+  /**
+   * Get particle velocities
+   */
+  getVelocities(): Float32Array {
+    const velocities = new Float32Array(this.particles.length * 2);
+
+    for (let i = 0; i < this.particles.length; i++) {
+      velocities[i * 2] = this.particles[i].vx;
+      velocities[i * 2 + 1] = this.particles[i].vy;
+    }
+
+    return velocities;
   }
 
   /**

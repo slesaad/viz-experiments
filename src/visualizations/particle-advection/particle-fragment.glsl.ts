@@ -20,18 +20,30 @@ vec3 getColorFromAge(float age) {
 }
 
 void main(void) {
-  // Create circular particles using texture coordinates
+  // Create wispy elongated particles
   // vTexCoord ranges from (0,0) to (1,1), center at (0.5, 0.5)
   vec2 coord = vTexCoord * 2.0 - 1.0;
-  float dist = length(coord);
 
-  // Discard pixels outside circle
-  if (dist > 1.0) {
+  // Use elongated distance calculation for wispy effect
+  // Stronger falloff in y (width), softer in x (length)
+  float distX = abs(coord.x);
+  float distY = abs(coord.y);
+
+  // Create elliptical shape
+  float ellipseDist = distX * distX * 0.3 + distY * distY * 2.0;
+
+  // Discard pixels outside the wisp shape
+  if (ellipseDist > 1.0) {
     discard;
   }
 
-  // Smooth edge with antialiasing
-  float alpha = 1.0 - smoothstep(0.7, 1.0, dist);
+  // Create wispy gradient: fade from center to edges
+  // Stronger gradient along the length (x) for trail effect
+  float alpha = 1.0 - smoothstep(0.0, 1.0, ellipseDist);
+
+  // Add extra fade along x for trail effect (brighter at back, fading toward front)
+  float trailFade = 1.0 - smoothstep(-0.8, 1.0, coord.x);
+  alpha *= trailFade;
 
   // Apply age-based fade (fadeOpacity controls the strength of the fade)
   alpha *= mix(1.0, (1.0 - vAge), particleAdvection.fadeOpacity);
@@ -39,11 +51,12 @@ void main(void) {
   // Get color based on age
   vec3 color = getColorFromAge(vAge);
 
-  // Add slight glow in the center
-  float glow = 1.0 - smoothstep(0.0, 0.5, dist);
-  color += vec3(glow * 0.3);
+  // Add soft glow in the center core
+  float coreGlow = 1.0 - smoothstep(0.0, 0.3, ellipseDist);
+  color += vec3(coreGlow * 0.4);
 
-  fragColor = vec4(color, alpha * 0.8);
+  // Lower overall opacity for a more ethereal, wispy look
+  fragColor = vec4(color, alpha * 0.6);
 
   DECKGL_FILTER_COLOR(fragColor, geometry);
 }

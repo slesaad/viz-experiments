@@ -111,6 +111,7 @@ export default function ParticleAdvectionVisualization() {
     const positions = particleSystemRef.current.getPositions();
     const ages = particleSystemRef.current.getAges();
     const colorValues = particleSystemRef.current.getCO2Values(); // Actually holds either CO2 or wind speed
+    const velocities = particleSystemRef.current.getVelocities();
 
     // Convert to data array with accessor-friendly format
     const data = [];
@@ -119,6 +120,7 @@ export default function ParticleAdvectionVisualization() {
         position: [positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2]],
         age: ages[i],
         co2: colorValues[i], // This will hold either CO2 or wind speed depending on colorBy
+        velocity: [velocities[i * 2], velocities[i * 2 + 1]],
       });
     }
 
@@ -156,6 +158,7 @@ export default function ParticleAdvectionVisualization() {
       getPosition: d => d.position,
       getAge: d => d.age,
       getCO2: d => d.co2,
+      getVelocity: d => d.velocity,
       particleSize,
       fadeOpacity: 0.5,
       time: time / 1000,

@@ -17,6 +17,7 @@ export type ParticleData = {
   position: [number, number, number];
   age: number;
   co2?: number;
+  velocity?: [number, number];
 };
 
 export type ParticleAdvectionLayerProps<DataT = ParticleData> = {
@@ -24,6 +25,7 @@ export type ParticleAdvectionLayerProps<DataT = ParticleData> = {
   getPosition?: Accessor<DataT, [number, number, number]>;
   getAge?: Accessor<DataT, number>;
   getCO2?: Accessor<DataT, number>;
+  getVelocity?: Accessor<DataT, [number, number]>;
   particleSize?: number;
   fadeOpacity?: number;
   time?: number;
@@ -35,6 +37,7 @@ const defaultProps: DefaultProps<ParticleAdvectionLayerProps> = {
   getPosition: { type: 'accessor', value: (d: ParticleData) => d.position },
   getAge: { type: 'accessor', value: (d: ParticleData) => d.age },
   getCO2: { type: 'accessor', value: (d: ParticleData) => d.co2 || 0 },
+  getVelocity: { type: 'accessor', value: (d: ParticleData) => d.velocity || [0, 0] },
   particleSize: { type: 'number', value: 2.0, min: 0.1, max: 100 },
   fadeOpacity: { type: 'number', value: 1.0, min: 0, max: 1 },
   time: { type: 'number', value: 0 },
@@ -88,6 +91,12 @@ export default class ParticleAdvectionLayer<DataT = ParticleData> extends Layer<
         type: 'float32',
         transition: true,
         accessor: 'getCO2',
+      },
+      instanceVelocity: {
+        size: 2,
+        type: 'float32',
+        transition: false,
+        accessor: 'getVelocity',
       },
     });
 
