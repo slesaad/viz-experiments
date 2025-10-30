@@ -3,7 +3,8 @@ import DeckGL from '@deck.gl/react';
 import { TileLayer } from '@deck.gl/geo-layers';
 import { BitmapLayer } from '@deck.gl/layers';
 import { generateFakeVelocityField } from './velocity-field';
-import { generateCO2VelocityField, getCO2Metadata, sampleCO2AtNormalizedPosition, getCO2Range } from './co2-velocity-field';
+import { generateCO2VelocityField, getCO2Metadata, sampleCO2AtNormalizedPosition, getCO2Range } from './co2-velocity-field.ts';
+import { generateWindVelocityField, getWindMetadata, sampleWindAtNormalizedPosition, getWindSpeedRange } from './wind-velocity-field.ts';
 import { ParticleSystem } from './particle-system';
 import ParticleAdvectionLayer from './ParticleAdvectionLayer';
 
@@ -30,31 +31,28 @@ const VISUALIZATION_BOUNDS = {
 const FIELD_WIDTH = 128;
 const FIELD_HEIGHT = 128;
 
-// Number of particles
-const NUM_PARTICLES = 10000;
-
 export default function ParticleAdvectionVisualization() {
   const [viewState, setViewState] = useState(INITIAL_VIEW_STATE);
   const [time, setTime] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [particleSize, setParticleSize] = useState(2.5);
   const [speedMultiplier, setSpeedMultiplier] = useState(1.0);
+  const [colorBy, setColorBy] = useState('co2'); // 'co2' or 'wind' - what to color particles by
+  const [numParticles, setNumParticles] = useState(10000);
 
   const particleSystemRef = useRef(null);
   const lastUpdateRef = useRef(Date.now());
 
-  // Initialize particle system
+  // Initialize and recreate particle system when particle count changes
   useEffect(() => {
-    if (!particleSystemRef.current) {
-      particleSystemRef.current = new ParticleSystem({
-        numParticles: NUM_PARTICLES,
-        bounds: VISUALIZATION_BOUNDS,
-        minAge: 50,
-        maxAge: 150,
-        speedMultiplier,
-      });
-    }
-  }, []);
+    particleSystemRef.current = new ParticleSystem({
+      numParticles: numParticles,
+      bounds: VISUALIZATION_BOUNDS,
+      minAge: 50,
+      maxAge: 150,
+      speedMultiplier,
+    });
+  }, [numParticles]);
 
   // Update speed multiplier
   useEffect(() => {
@@ -86,25 +84,33 @@ export default function ParticleAdvectionVisualization() {
       return [];
     }
 
-    // Generate velocity field from real CO2 data
-    const velocityField = generateCO2VelocityField(
+    // Always use wind for particle movement
+    const velocityField = generateWindVelocityField(
       FIELD_WIDTH,
       FIELD_HEIGHT,
       VISUALIZATION_BOUNDS
     );
 
-    // Update particle system
-    particleSystemRef.current.update(velocityField, 16);
+    // Sample the value for coloring based on colorBy setting
+    let sampleFn;
+    if (colorBy === 'wind') {
+      // Color by wind speed
+      sampleFn = (x, y) => {
+        const wind = sampleWindAtNormalizedPosition(x, y, VISUALIZATION_BOUNDS);
+        return wind.speed;
+      };
+    } else {
+      // Color by CO2 concentration
+      sampleFn = (x, y) => sampleCO2AtNormalizedPosition(x, y, VISUALIZATION_BOUNDS);
+    }
 
-    // Sample CO2 values at particle positions
-    particleSystemRef.current.setCO2Values((x, y) =>
-      sampleCO2AtNormalizedPosition(x, y, VISUALIZATION_BOUNDS)
-    );
+    // Update particle system with wind velocity and appropriate color sampling
+    particleSystemRef.current.update(velocityField, 16, sampleFn);
 
     // Get raw data
     const positions = particleSystemRef.current.getPositions();
     const ages = particleSystemRef.current.getAges();
-    const co2Values = particleSystemRef.current.getCO2Values();
+    const colorValues = particleSystemRef.current.getCO2Values(); // Actually holds either CO2 or wind speed
 
     // Convert to data array with accessor-friendly format
     const data = [];
@@ -112,18 +118,38 @@ export default function ParticleAdvectionVisualization() {
       data.push({
         position: [positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2]],
         age: ages[i],
-        co2: co2Values[i],
+        co2: colorValues[i], // This will hold either CO2 or wind speed depending on colorBy
       });
     }
 
     return data;
-  }, [time]);
+  }, [time, colorBy]);
 
-  // Get CO2 range for color mapping
-  const co2Range = useMemo(() => getCO2Range(), []);
+  // Get value range for color mapping based on colorBy setting
+  const valueRange = useMemo(() => {
+    if (colorBy === 'wind') {
+      return getWindSpeedRange();
+    }
+    return getCO2Range();
+  }, [colorBy]);
 
   // Create particle layer
   const particleLayer = useMemo(() => {
+    // Different color scales for different color modes
+    const colorScale = colorBy === 'wind'
+      ? [
+          [0.4, 0.7, 1.0],  // Low wind - Light Blue
+          [0.3, 0.9, 0.6],  // Medium-low wind - Cyan/Green
+          [0.9, 0.9, 0.3],  // Medium-high wind - Yellow
+          [1.0, 0.4, 0.2],  // High wind - Red
+        ]
+      : [
+          [0.1, 0.4, 0.8],  // Low CO2 - Blue
+          [0.3, 0.7, 0.5],  // Medium CO2 - Green
+          [0.9, 0.9, 0.2],  // High CO2 - Yellow
+          [1.0, 0.3, 0.1],  // Very High CO2 - Red
+        ];
+
     return new ParticleAdvectionLayer({
       id: 'particle-advection',
       data: particleData,
@@ -133,15 +159,10 @@ export default function ParticleAdvectionVisualization() {
       particleSize,
       fadeOpacity: 0.5,
       time: time / 1000,
-      co2Range,
-      colorScale: [
-        [0.1, 0.4, 0.8],  // Low CO2 - Blue
-        [0.3, 0.7, 0.5],  // Medium CO2 - Green
-        [0.9, 0.9, 0.2],  // High CO2 - Yellow
-        [1.0, 0.3, 0.1],  // Very High CO2 - Red
-      ],
+      co2Range: valueRange,
+      colorScale,
     });
-  }, [particleData, particleSize, time, co2Range]);
+  }, [particleData, particleSize, time, valueRange, colorBy]);
 
   // Free basemap layer (CartoDB Dark Matter)
   const basemapLayer = useMemo(() => {
@@ -189,8 +210,50 @@ export default function ParticleAdvectionVisualization() {
         boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
       }}>
         <h3 style={{ margin: '0 0 15px 0', fontSize: '18px' }}>
-          CO2 Flow Visualization
+          Wind Flow Visualization
         </h3>
+
+        {/* Color By Toggle */}
+        <div style={{
+          display: 'flex',
+          gap: '10px',
+          marginBottom: '15px',
+        }}>
+          <button
+            onClick={() => setColorBy('co2')}
+            style={{
+              flex: 1,
+              padding: '10px',
+              background: colorBy === 'co2' ? '#2196F3' : 'rgba(255, 255, 255, 0.1)',
+              border: 'none',
+              borderRadius: '4px',
+              color: 'white',
+              cursor: 'pointer',
+              fontSize: '13px',
+              fontWeight: colorBy === 'co2' ? 'bold' : 'normal',
+              transition: 'all 0.2s',
+            }}
+          >
+            Color by CO2
+          </button>
+          <button
+            onClick={() => setColorBy('wind')}
+            style={{
+              flex: 1,
+              padding: '10px',
+              background: colorBy === 'wind' ? '#2196F3' : 'rgba(255, 255, 255, 0.1)',
+              border: 'none',
+              borderRadius: '4px',
+              color: 'white',
+              cursor: 'pointer',
+              fontSize: '13px',
+              fontWeight: colorBy === 'wind' ? 'bold' : 'normal',
+              transition: 'all 0.2s',
+            }}
+          >
+            Color by Wind
+          </button>
+        </div>
 
         {/* Status */}
         <div style={{
@@ -203,7 +266,7 @@ export default function ParticleAdvectionVisualization() {
           <div style={{ marginBottom: '8px' }}>
             <strong>Particles:</strong>
             <span style={{ color: '#4CAF50', marginLeft: '8px' }}>
-              {NUM_PARTICLES.toLocaleString()}
+              {numParticles.toLocaleString()}
             </span>
           </div>
           <div style={{ marginBottom: '8px' }}>
@@ -265,6 +328,30 @@ export default function ParticleAdvectionVisualization() {
           />
         </div>
 
+        {/* Particle Count Control */}
+        <div style={{ marginBottom: '15px' }}>
+          <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px' }}>
+            Particle Count: {numParticles.toLocaleString()}
+            {numParticles > 50000 && <span style={{ color: '#FFB74D', fontSize: '11px' }}> (may impact performance)</span>}
+          </label>
+          <input
+            type="range"
+            min="1000"
+            max="100000"
+            step="1000"
+            value={numParticles}
+            onChange={(e) => setNumParticles(parseInt(e.target.value))}
+            style={{ width: '100%' }}
+          />
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#999', marginTop: '4px' }}>
+            <span>1K</span>
+            <span>25K</span>
+            <span>50K</span>
+            <span>75K</span>
+            <span>100K</span>
+          </div>
+        </div>
+
         {/* Features */}
         <div style={{
           background: 'rgba(33, 150, 243, 0.15)',
@@ -274,12 +361,12 @@ export default function ParticleAdvectionVisualization() {
           fontSize: '12px',
           lineHeight: '1.7'
         }}>
-          <strong style={{ color: '#2196F3' }}>Features:</strong><br />
-          ✓ {NUM_PARTICLES.toLocaleString()} particles<br />
+          <strong style={{ color: '#2196F3' }}>Data Sources:</strong><br />
           ✓ GPU-accelerated rendering<br />
-          ✓ Real OCO-2 CO2 data (2022-02-28)<br />
+          ✓ GEOS FP wind data (2022-02-28)<br />
+          ✓ OCO-2 CO2 satellite data<br />
           ✓ Age-based particle fading<br />
-          ✓ Gradient-based flow field
+          ✓ Dynamic particle count
         </div>
 
         {/* Info */}
@@ -289,10 +376,19 @@ export default function ParticleAdvectionVisualization() {
           lineHeight: '1.6'
         }}>
           <strong style={{ color: '#fff' }}>How it works:</strong><br />
-          • Particles follow CO2 gradients<br />
-          • Flow from high to low CO2<br />
-          • Based on satellite data<br />
-          • Real-time GPU rendering
+          • Particles follow wind direction<br />
+          • U (eastward) + V (northward)<br />
+          {colorBy === 'wind' ? (
+            <>
+              • <strong style={{ color: '#4CAF50' }}>Color by wind speed</strong><br />
+              • Blue=slow, Red=fast wind
+            </>
+          ) : (
+            <>
+              • <strong style={{ color: '#4CAF50' }}>Color by CO2 concentration</strong><br />
+              • Blue=low, Red=high CO2
+            </>
+          )}
         </div>
       </div>
 
@@ -307,9 +403,9 @@ export default function ParticleAdvectionVisualization() {
         color: 'white',
         fontSize: '11px',
       }}>
-        OCO-2 CO2 Data (Feb 28, 2022)<br />
-        Field Resolution: {FIELD_WIDTH}x{FIELD_HEIGHT}<br />
-        FPS: ~{(1000 / 16).toFixed(0)}
+        Flow: GEOS FP Wind (Feb 28, 2022 01:30 UTC)<br />
+        Color: {colorBy === 'wind' ? 'Wind Speed' : 'OCO-2 CO2 (Feb 28, 2022)'}<br />
+        Field: {FIELD_WIDTH}x{FIELD_HEIGHT} | FPS: ~{(1000 / 16).toFixed(0)}
       </div>
     </div>
   );

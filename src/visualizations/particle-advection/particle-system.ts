@@ -57,7 +57,11 @@ export class ParticleSystem {
     particle.maxAge = this.minAge + Math.random() * (this.maxAge - this.minAge);
   }
 
-  update(velocityField: VelocityField, dt: number = 1.0): void {
+  update(
+    velocityField: VelocityField,
+    dt: number = 1.0,
+    co2SampleFn?: (x: number, y: number) => number
+  ): void {
     for (const particle of this.particles) {
       // Sample velocity at particle position
       const [u, v] = sampleVelocity(velocityField, particle.x, particle.y);
@@ -70,6 +74,11 @@ export class ParticleSystem {
       // Wrap around boundaries
       particle.x = ((particle.x % 1) + 1) % 1;
       particle.y = ((particle.y % 1) + 1) % 1;
+
+      // Sample CO2 value at new position if function provided
+      if (co2SampleFn) {
+        particle.co2Value = co2SampleFn(particle.x, particle.y);
+      }
 
       // Update age
       particle.age += 1;
