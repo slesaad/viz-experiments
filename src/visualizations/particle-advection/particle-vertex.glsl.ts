@@ -9,16 +9,19 @@ in vec2 texCoords;
 in vec3 instancePositions;
 in float instanceAges;
 in vec2 instanceVelocity;
+in float instanceCO2;
 
 out float vAge;
+out float vCO2Value;
 out vec2 vTexCoord;
 
 void main(void) {
   // Set geometry world position for picking (use particle center)
   geometry.worldPosition = instancePositions;
 
-  // Pass age and tex coords to fragment shader
+  // Pass age, CO2 value, and tex coords to fragment shader
   vAge = instanceAges;
+  vCO2Value = instanceCO2;
   vTexCoord = texCoords;
 
   // Calculate size factor based on age

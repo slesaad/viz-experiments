@@ -35,10 +35,10 @@ export default function ParticleAdvectionVisualization() {
   const [viewState, setViewState] = useState(INITIAL_VIEW_STATE);
   const [time, setTime] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
-  const [particleSize, setParticleSize] = useState(2.5);
+  const [particleSize, setParticleSize] = useState(4.5);
   const [speedMultiplier, setSpeedMultiplier] = useState(1.0);
   const [colorBy, setColorBy] = useState('co2'); // 'co2' or 'wind' - what to color particles by
-  const [numParticles, setNumParticles] = useState(10000);
+  const [numParticles, setNumParticles] = useState(45000);
 
   const particleSystemRef = useRef(null);
   const lastUpdateRef = useRef(Date.now());
@@ -146,10 +146,14 @@ export default function ParticleAdvectionVisualization() {
           [1.0, 0.4, 0.2],  // High wind - Red
         ]
       : [
-          [0.1, 0.4, 0.8],  // Low CO2 - Blue
-          [0.3, 0.7, 0.5],  // Medium CO2 - Green
-          [0.9, 0.9, 0.2],  // High CO2 - Yellow
-          [1.0, 0.3, 0.1],  // Very High CO2 - Red
+          [0.9, 0.6, 0.4],  // Low CO2 - Light rust/peach
+          [0.1, 0.1, 1.0],  // Medium CO2 - Medium rust orange
+          [0.8, 1.0, 0.2],  // High CO2 - Deep rust orange
+          [1.0, 0.0, 0.0],  // Very High CO2 - Dark rust/brown
+          // [0.9, 0.6, 0.4],  // Low CO2 - Light rust/peach
+          // [0.9, 0.5, 0.3],  // Medium CO2 - Medium rust orange
+          // [0.8, 0.4, 0.2],  // High CO2 - Deep rust orange
+          // [0.7, 0.3, 0.1],  // Very High CO2 - Dark rust/brown
         ];
 
     return new ParticleAdvectionLayer({

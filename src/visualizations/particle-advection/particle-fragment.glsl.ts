@@ -4,18 +4,26 @@ export default `#version 300 es
 precision highp float;
 
 in float vAge;
+in float vCO2Value;
 in vec2 vTexCoord;
 
 out vec4 fragColor;
 
-vec3 getColorFromAge(float age) {
-  // Interpolate between color stops based on age
-  if (age < 0.5) {
-    float t = age * 2.0;
+vec3 getColorFromValue(float value) {
+  // Normalize value based on co2Range (min to max)
+  float normalizedValue = (value - particleAdvection.co2Min) / (particleAdvection.co2Max - particleAdvection.co2Min);
+  normalizedValue = clamp(normalizedValue, 0.0, 1.0);
+
+  // Interpolate between 4 color stops
+  if (normalizedValue < 0.33) {
+    float t = normalizedValue / 0.33;
     return mix(particleAdvection.colorScale0, particleAdvection.colorScale1, t);
-  } else {
-    float t = (age - 0.5) * 2.0;
+  } else if (normalizedValue < 0.67) {
+    float t = (normalizedValue - 0.33) / 0.34;
     return mix(particleAdvection.colorScale1, particleAdvection.colorScale2, t);
+  } else {
+    float t = (normalizedValue - 0.67) / 0.33;
+    return mix(particleAdvection.colorScale2, particleAdvection.colorScale3, t);
   }
 }
 
@@ -48,8 +56,8 @@ void main(void) {
   // Apply age-based fade (fadeOpacity controls the strength of the fade)
   alpha *= mix(1.0, (1.0 - vAge), particleAdvection.fadeOpacity);
 
-  // Get color based on age
-  vec3 color = getColorFromAge(vAge);
+  // Get color based on CO2/wind value
+  vec3 color = getColorFromValue(vCO2Value);
 
   // Add soft glow in the center core
   float coreGlow = 1.0 - smoothstep(0.0, 0.3, ellipseDist);

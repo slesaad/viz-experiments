@@ -12,6 +12,9 @@ uniform particleAdvectionUniforms {
   vec3 colorScale0;
   vec3 colorScale1;
   vec3 colorScale2;
+  vec3 colorScale3;
+  float co2Min;
+  float co2Max;
 } particleAdvection;
 `;
 
@@ -22,6 +25,9 @@ export type ParticleAdvectionProps = {
   colorScale0: [number, number, number];
   colorScale1: [number, number, number];
   colorScale2: [number, number, number];
+  colorScale3: [number, number, number];
+  co2Min: number;
+  co2Max: number;
 };
 
 export const particleAdvectionUniforms = {
@@ -35,5 +41,8 @@ export const particleAdvectionUniforms = {
     colorScale0: 'vec3<f32>',
     colorScale1: 'vec3<f32>',
     colorScale2: 'vec3<f32>',
+    colorScale3: 'vec3<f32>',
+    co2Min: 'f32',
+    co2Max: 'f32',
   }
 } as const satisfies ShaderModule<ParticleAdvectionProps>;
