@@ -24,6 +24,7 @@ const StormSurgeVisualization = React.lazy(() => import('./visualizations/storm.
 const CustomMesh = React.lazy(() => import('./visualizations/custom-mesh.jsx'));
 const ParticleAdvection = React.lazy(() => import('./visualizations/particle-advection/index.jsx'));
 const ThreeLayer = React.lazy(() => import('./visualizations/three-layer/index.jsx'));
+const VolumetricWind = React.lazy(() => import('./visualizations/volumetric/index.jsx'));
 
 const visualizations = [
   // { label: 'LAZ', component: LAZ },
@@ -46,6 +47,7 @@ const visualizations = [
   { label: 'Custom Mesh', path: '/custom-mesh', component: CustomMesh },
   { label: 'Particle Advection', path: '/particle-advection', component: ParticleAdvection },
   { label: 'Three.js integration', path: '/three', component: ThreeLayer },
+  { label: 'Volumetric Wind', path: '/volumetric', component: VolumetricWind },
 ];
 
 export default function App() {

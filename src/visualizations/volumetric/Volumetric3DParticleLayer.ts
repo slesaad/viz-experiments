@@ -22,6 +22,7 @@ export type Particle3DData = {
 export type Volumetric3DParticleLayerProps<DataT = Particle3DData> = {
   data: DataT[];
   getPosition?: Accessor<DataT, [number, number, number]>;
+  getVelocity?: Accessor<DataT, [number, number, number]>;
   getSpeed?: Accessor<DataT, number>;
   particleSize?: number;
   colorLow?: [number, number, number, number];
@@ -31,8 +32,9 @@ export type Volumetric3DParticleLayerProps<DataT = Particle3DData> = {
 
 const defaultProps: DefaultProps<Volumetric3DParticleLayerProps> = {
   getPosition: { type: 'accessor', value: (d: Particle3DData) => d.position },
+  getVelocity: { type: 'accessor', value: (d: Particle3DData) => d.velocity },
   getSpeed: { type: 'accessor', value: (d: Particle3DData) => d.speed },
-  particleSize: { type: 'number', value: 8.0, min: 1, max: 50 },
+  particleSize: { type: 'number', value: 10000.0, min: 1000, max: 100000 },
   colorLow: { type: 'color', value: [64, 128, 255, 200] },
   colorHigh: { type: 'color', value: [255, 64, 64, 200] },
   speedRange: { type: 'array', value: [0, 50], compare: true },
@@ -63,6 +65,12 @@ export default class Volumetric3DParticleLayer<DataT = Particle3DData> extends L
         transition: false,
         accessor: 'getPosition',
       },
+      instanceVelocities: {
+        size: 3,
+        type: 'float32',
+        transition: false,
+        accessor: 'getVelocity',
+      },
       instanceSpeeds: {
         size: 1,
         type: 'float32',
@@ -76,29 +84,27 @@ export default class Volumetric3DParticleLayer<DataT = Particle3DData> extends L
   }
 
   protected _getModel(): Model {
-    const quadPositions = new Float32Array([
-      -0.5, -0.5, 0,
-       0.5, -0.5, 0,
-      -0.5,  0.5, 0,
-       0.5,  0.5, 0,
+    // Create line geometry pointing along +X axis
+    // Position t goes from 0 (start) to 1 (tip)
+    const linePositions = new Float32Array([
+      0.0, 0.0, 0.0,   // Start of line (t=0)
+      1.0, 0.0, 0.0,   // End of line / tip (t=1)
     ]);
 
-    const quadTexCoords = new Float32Array([
-      0, 0,
-      1, 0,
-      0, 1,
-      1, 1,
+    const lineT = new Float32Array([
+      0.0,  // Start
+      1.0,  // Tip
     ]);
 
     const model = new Model(this.context.device, {
       ...this.getShaders(),
-      id: `${this.props.id}-volumetric-particles`,
+      id: `${this.props.id}-volumetric-lines`,
       bufferLayout: this.getAttributeManager()!.getBufferLayouts(),
       geometry: new Geometry({
-        topology: 'triangle-strip',
+        topology: 'line-list',
         attributes: {
-          positions: { size: 3, value: quadPositions },
-          texCoords: { size: 2, value: quadTexCoords },
+          positions: { size: 3, value: linePositions },
+          lineT: { size: 1, value: lineT },
         },
       }),
       isInstanced: true,

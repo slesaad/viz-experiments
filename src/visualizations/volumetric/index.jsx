@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import DeckGL from '@deck.gl/react';
 import { TileLayer } from '@deck.gl/geo-layers';
-import { BitmapLayer } from '@deck.gl/layers';
+import { BitmapLayer, ScatterplotLayer, PointCloudLayer } from '@deck.gl/layers';
 import Volumetric3DParticleLayer from './Volumetric3DParticleLayer';
 import windData3D from './wind_data_3d_us.json';
 
@@ -16,77 +16,85 @@ const INITIAL_VIEW_STATE = {
   maxZoom: 12
 };
 
-function generate3DParticles(windData, numParticles = 5000) {
+function generate3DWindArrows(windData, numArrows = 1000) {
   const { lats, lons, levels, heights, u, v, omega, metadata } = windData;
   const { grid_size } = metadata;
 
-  const particles = [];
+  const arrows = [];
 
-  for (let i = 0; i < numParticles; i++) {
-    // Random position in the grid
-    const xi = Math.floor(Math.random() * grid_size.width);
-    const yi = Math.floor(Math.random() * grid_size.height);
-    const zi = Math.floor(Math.random() * grid_size.depth);
+  // Use all available data points - no stepping
+  for (let zi = 0; zi < heights.length; zi++) {
+    for (let yi = 0; yi < lats.length; yi++) {
+      for (let xi = 0; xi < lons.length; xi++) {
+        // Get wind components
+        const uWind = u[zi][yi][xi];
+        const vWind = v[zi][yi][xi];
+        const wWind = omega[zi][yi][xi] * 100; // Scale vertical velocity to meters
 
-    const lon = lons[xi];
-    const lat = lats[yi];
-    const height = heights[zi];
+        const speed = Math.sqrt(uWind * uWind + vWind * vWind + wWind * wWind);
 
-    // Get wind components
-    const uWind = u[zi][yi][xi];
-    const vWind = v[zi][yi][xi];
-    const wWind = omega[zi][yi][xi] * 0.1; // Scale vertical velocity
-
-    const speed = Math.sqrt(uWind * uWind + vWind * vWind + wWind * wWind);
-
-    particles.push({
-      position: [lon, lat, height],
-      velocity: [uWind, vWind, wWind],
-      speed,
-    });
+        arrows.push({
+          position: [lons[xi], lats[yi], heights[zi]],
+          velocity: [uWind, vWind, wWind],
+          speed,
+        });
+      }
+    }
   }
 
-  return particles;
+  return arrows;
 }
 
 export default function VolumetricWindVisualization() {
   const [viewState, setViewState] = useState(INITIAL_VIEW_STATE);
-  const [particleSize, setParticleSize] = useState(8);
-  const [numParticles, setNumParticles] = useState(5000);
+  const [arrowSize, setArrowSize] = useState(10000);
+  const [numArrows, setNumArrows] = useState(500);
   const [showBasemap, setShowBasemap] = useState(true);
-  const [particles, setParticles] = useState([]);
+  const [arrows, setArrows] = useState([]);
+  const [selectedLevel, setSelectedLevel] = useState(-1); // -1 means show all levels
 
-  // Generate particles on mount and when numParticles changes
+  // Generate arrows on mount and when numArrows changes
   useEffect(() => {
-    console.log('Generating 3D particles from wind data...');
-    const newParticles = generate3DParticles(windData3D, numParticles);
-    setParticles(newParticles);
-    console.log(`Generated ${newParticles.length} particles`);
-    if (newParticles.length > 0) {
-      console.log('Sample particle:', newParticles[0]);
-      console.log('Position range:', {
-        lon: [Math.min(...newParticles.map(p => p.position[0])), Math.max(...newParticles.map(p => p.position[0]))],
-        lat: [Math.min(...newParticles.map(p => p.position[1])), Math.max(...newParticles.map(p => p.position[1]))],
-        height: [Math.min(...newParticles.map(p => p.position[2])), Math.max(...newParticles.map(p => p.position[2]))],
-      });
-    }
-  }, [numParticles]);
+    console.log('Generating 3D wind arrows from wind data...');
+    const newArrows = generate3DWindArrows(windData3D, numArrows);
+    console.log(newArrows);
+    setArrows(newArrows);
+    console.log(`Generated ${newArrows.length} wind arrows`);
+   
+  }, []);
 
-  // Create volumetric particle layer
+  // Create volumetric arrow layer
   const volumetricLayer = useMemo(() => {
-    console.log(`Creating layer with ${particles.length} particles, size: ${particleSize}`);
+    // Filter arrows by selected level if specified
+    const filteredArrows = selectedLevel === -1
+      ? arrows
+      : arrows.filter(d => {
+          const heightIndex = windData3D.heights.indexOf(d.position[2]);
+          return heightIndex === selectedLevel;
+        });
 
-    return new Volumetric3DParticleLayer({
-      id: 'volumetric-particles',
-      data: particles,
+    console.log(`Creating layer with ${filteredArrows.length} arrows (level ${selectedLevel}), size: ${arrowSize}`);
+
+    return new PointCloudLayer({
+      id: 'volumetric-arrows',
+      data: filteredArrows,
       getPosition: d => d.position,
-      getSpeed: d => d.speed,
-      particleSize,
-      colorLow: [64, 128, 255, 200],
-      colorHigh: [255, 64, 64, 200],
-      speedRange: [0, 50],
+      pointSize: 10,
+      sizeUnits: 'pixels',
+      getColor: d => {
+        // Map velocity components to color
+        // Normalize each component to 0-255 range
+        const [u, v, w] = d.velocity;
+        const maxWind = 50; // Max expected wind speed component
+
+        const r = Math.min(255, Math.max(0, ((u + maxWind) / (2 * maxWind)) * 255));
+        const g = Math.min(255, Math.max(0, ((v + maxWind) / (2 * maxWind)) * 255));
+        const b = Math.min(255, Math.max(0, ((w + maxWind) / (2 * maxWind)) * 255));
+
+        return [r, g, b, 200];
+      },
     });
-  }, [particles, particleSize]);
+  }, [arrows, arrowSize, selectedLevel]);
 
   // Basemap layer
   const basemapLayer = useMemo(() => {
@@ -161,9 +169,9 @@ export default function VolumetricWindVisualization() {
             <strong>Time:</strong> {windData3D.metadata.time}
           </div>
           <div style={{ marginBottom: '8px' }}>
-            <strong>Particles:</strong>
+            <strong>Wind Vectors:</strong>
             <span style={{ color: '#4CAF50', marginLeft: '8px' }}>
-              {numParticles.toLocaleString()}
+              {numArrows.toLocaleString()}
             </span>
           </div>
           <div>
@@ -171,43 +179,64 @@ export default function VolumetricWindVisualization() {
           </div>
         </div>
 
-        {/* Particle Size Control */}
+        {/* Arrow Size Control */}
         <div style={{ marginBottom: '15px' }}>
           <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px' }}>
-            Particle Size: {particleSize.toFixed(1)} pixels
+            Line Length: {(arrowSize / 1000).toFixed(0)}km
           </label>
           <input
             type="range"
-            min="1"
-            max="30"
-            step="0.5"
-            value={particleSize}
-            onChange={(e) => setParticleSize(parseFloat(e.target.value))}
+            min="3000"
+            max="30000"
+            step="1000"
+            value={arrowSize}
+            onChange={(e) => setArrowSize(parseFloat(e.target.value))}
             style={{ width: '100%' }}
           />
         </div>
 
-        {/* Particle Count Control */}
+        {/* Vector Count Control */}
         <div style={{ marginBottom: '15px' }}>
           <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px' }}>
-            Particle Count: {numParticles.toLocaleString()}
-            {numParticles > 10000 && <span style={{ color: '#FFB74D', fontSize: '11px' }}> (may impact performance)</span>}
+            Vector Count: {numArrows.toLocaleString()}
+            {numArrows > 3000 && <span style={{ color: '#FFB74D', fontSize: '11px' }}> (may impact performance)</span>}
           </label>
           <input
             type="range"
-            min="500"
-            max="20000"
-            step="500"
-            value={numParticles}
-            onChange={(e) => setNumParticles(parseInt(e.target.value))}
+            min="100"
+            max="5000"
+            step="100"
+            value={numArrows}
+            onChange={(e) => setNumArrows(parseInt(e.target.value))}
             style={{ width: '100%' }}
           />
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#999', marginTop: '4px' }}>
-            <span>500</span>
+            <span>100</span>
+            <span>1K</span>
+            <span>2.5K</span>
             <span>5K</span>
-            <span>10K</span>
-            <span>15K</span>
-            <span>20K</span>
+          </div>
+        </div>
+
+        {/* Pressure Level Control */}
+        <div style={{ marginBottom: '15px' }}>
+          <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px' }}>
+            Pressure Level: {selectedLevel === -1 ? 'All Levels' : `${windData3D.levels[selectedLevel]} hPa (${(windData3D.heights[selectedLevel] / 1000).toFixed(1)} km)`}
+          </label>
+          <input
+            type="range"
+            min="-1"
+            max={windData3D.heights.length - 1}
+            step="1"
+            value={selectedLevel}
+            onChange={(e) => setSelectedLevel(parseInt(e.target.value))}
+            style={{ width: '100%' }}
+          />
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#999', marginTop: '4px' }}>
+            <span>All</span>
+            {windData3D.levels.map((level, idx) => (
+              <span key={idx}>{level}</span>
+            ))}
           </div>
         </div>
 
@@ -306,8 +335,8 @@ export default function VolumetricWindVisualization() {
           </div>
         </div>
         <div style={{ marginTop: '10px', fontSize: '10px', color: '#999' }}>
-          Each particle represents wind<br />
-          at a specific 3D location
+          Lines show wind direction<br />
+          Red tip indicates flow direction
         </div>
       </div>
 

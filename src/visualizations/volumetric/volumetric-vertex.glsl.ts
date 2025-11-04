@@ -1,39 +1,55 @@
 export default `#version 300 es
-#define SHADER_NAME volumetric-3d-particle-vertex
+#define SHADER_NAME volumetric-3d-line-vertex
 
-// Geometry attributes (unit quad)
+// Geometry attributes (line)
 in vec3 positions;
-in vec2 texCoords;
+in float lineT;
 
-// Instance attributes (per-particle)
+// Instance attributes (per-line)
 in vec3 instancePositions;
+in vec3 instanceVelocities;
 in float instanceSpeeds;
 
-out vec2 vTexCoord;
 out float vSpeed;
+out float vT;
 
 void main(void) {
   // Set geometry world position for picking
   geometry.worldPosition = instancePositions;
 
   // Pass data to fragment shader
-  vTexCoord = texCoords;
   vSpeed = instanceSpeeds;
+  vT = lineT;
 
-  // Project particle center to common space and then to clip space
-  vec3 center_commonspace = project_position(instancePositions);
-  vec4 center_clipspace = project_common_position_to_clipspace(vec4(center_commonspace, 1.0));
+  // Normalize velocity to get direction
+  vec3 velocity = instanceVelocities;
+  float speed = length(velocity);
+  vec3 direction = speed > 0.001 ? normalize(velocity) : vec3(1.0, 0.0, 0.0);
 
-  // Scale to pixels and then to NDC for billboard effect
-  vec2 offset_pixels = positions.xy * volumetric.particleSize;
-  vec2 offset_ndc = offset_pixels / project.viewportSize * 2.0;
+  // Create rotation matrix to align line with velocity direction
+  // Line points along +X axis by default, rotate to point along velocity
+  vec3 xAxis = direction;
+  vec3 up = abs(direction.z) < 0.999 ? vec3(0.0, 0.0, 1.0) : vec3(0.0, 1.0, 0.0);
+  vec3 yAxis = normalize(cross(up, xAxis));
+  vec3 zAxis = cross(xAxis, yAxis);
 
-  // Apply offset in clip space (billboard effect)
-  gl_Position = center_clipspace;
-  gl_Position.xy += offset_ndc * center_clipspace.w;
+  mat3 rotationMatrix = mat3(xAxis, yAxis, zAxis);
 
-  // Set geometry position
-  geometry.position = vec4(center_commonspace, 1.0);
+  // Scale line by speed and size parameter
+  float lineScale = volumetric.particleSize;
+
+  // Apply rotation and scale to line geometry
+  vec3 rotatedPos = rotationMatrix * (positions * lineScale);
+
+  // Offset from instance position
+  vec3 worldPos = instancePositions + rotatedPos;
+
+  // Project to clip space
+  vec3 pos_commonspace = project_position(worldPos);
+  vec4 pos_clipspace = project_common_position_to_clipspace(vec4(pos_commonspace, 1.0));
+
+  gl_Position = pos_clipspace;
+  geometry.position = vec4(pos_commonspace, 1.0);
 
   DECKGL_FILTER_GL_POSITION(gl_Position, geometry);
 }

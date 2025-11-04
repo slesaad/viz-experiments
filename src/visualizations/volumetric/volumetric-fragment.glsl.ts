@@ -1,24 +1,24 @@
 export default `#version 300 es
-#define SHADER_NAME volumetric-3d-particle-fragment
+#define SHADER_NAME volumetric-3d-line-fragment
 precision highp float;
 
-in vec2 vTexCoord;
 in float vSpeed;
+in float vT;
 
 out vec4 fragColor;
 
 void main() {
-  // Make particles circular
-  float dist = length(vTexCoord - 0.5);
-  if (dist > 0.5) discard;
+  // Normalize speed for color mapping along the line body
+  float speedNorm = clamp((vSpeed - volumetric.speedMin) / (volumetric.speedMax - volumetric.speedMin), 0.0, 1.0);
+  vec4 bodyColor = mix(volumetric.colorLow, volumetric.colorHigh, speedNorm);
 
-  // Normalize speed for color mapping
-  float t = clamp((vSpeed - volumetric.speedMin) / (volumetric.speedMax - volumetric.speedMin), 0.0, 1.0);
-  vec4 color = mix(volumetric.colorLow, volumetric.colorHigh, t);
+  // Tip of the line (t close to 1.0) is red
+  vec4 tipColor = vec4(1.0, 0.0, 0.0, 1.0);
 
-  // Soft edges
-  float alpha = 1.0 - smoothstep(0.3, 0.5, dist);
-  color.a *= alpha;
+  // Mix between body color and red tip based on position along line
+  // Last 20% of line transitions to red
+  float tipBlend = smoothstep(0.7, 1.0, vT);
+  vec4 color = mix(bodyColor, tipColor, tipBlend);
 
   fragColor = color;
 }
