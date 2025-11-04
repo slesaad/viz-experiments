@@ -23,6 +23,7 @@ const AnimatedDot = React.lazy(() => import('./visualizations/animated-dot.jsx')
 const StormSurgeVisualization = React.lazy(() => import('./visualizations/storm.jsx'));
 const CustomMesh = React.lazy(() => import('./visualizations/custom-mesh.jsx'));
 const ParticleAdvection = React.lazy(() => import('./visualizations/particle-advection/index.jsx'));
+const ThreeLayer = React.lazy(() => import('./visualizations/three-layer/index.jsx'));
 
 const visualizations = [
   // { label: 'LAZ', component: LAZ },
@@ -44,6 +45,7 @@ const visualizations = [
   { label: 'Storm', path: '/storm', component: StormSurgeVisualization },
   { label: 'Custom Mesh', path: '/custom-mesh', component: CustomMesh },
   { label: 'Particle Advection', path: '/particle-advection', component: ParticleAdvection },
+  { label: 'Three.js integration', path: '/three', component: ThreeLayer },
 ];
 
 export default function App() {
