@@ -15,6 +15,7 @@ export default class ThreeLayer extends Layer<ThreeLayerProps> {
   declare state: {
     renderer: WebGLRenderer;
     camera: PerspectiveCamera;
+    animationFrame?: number;
   };
 
   initializeState(context: LayerContext): void {
@@ -33,9 +34,26 @@ export default class ThreeLayer extends Layer<ThreeLayerProps> {
       renderer,
       camera,
     });
+
+    // Start animation loop to continuously update
+    this.startAnimationLoop();
+  }
+
+  startAnimationLoop(): void {
+    const animate = () => {
+      // Trigger a redraw
+      this.setNeedsRedraw();
+      this.state.animationFrame = requestAnimationFrame(animate);
+    };
+    animate();
   }
 
   finalizeState(): void {
+    // Stop animation loop
+    if (this.state.animationFrame) {
+      cancelAnimationFrame(this.state.animationFrame);
+    }
+
     // Clean up Three.js resources
     if (this.state.renderer) {
       this.state.renderer.dispose();
@@ -55,15 +73,19 @@ export default class ThreeLayer extends Layer<ThreeLayerProps> {
     const viewProjectMatrix = new Matrix4(viewport.viewProjectionMatrix);
     const mvpMatrix = viewProjectMatrix.multiplyRight(modelMatrix);
 
-    // Debug logging (comment out after verification)
-    console.log('ThreeLayer draw called', {
-      position,
-      scale: scales.unitsPerMeter,
-      sceneChildren: this.props.scene.children.length
+    // Update time uniform for animated materials
+    const currentTime = performance.now() * 0.001;
+    this.props.scene.traverse((object: any) => {
+      if (object.material && object.material.uniforms) {
+        if (object.material.uniforms.time !== undefined) {
+          object.material.uniforms.time.value = currentTime;
+        }
+      }
     });
 
     // Update camera projection matrix and render
     camera.projectionMatrix = new THREE.Matrix4().fromArray(mvpMatrix);
+    camera.matrixAutoUpdate = false;
     renderer.resetState();
     renderer.render(this.props.scene, camera);
   }
