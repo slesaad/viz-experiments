@@ -3,6 +3,7 @@ import DeckGL from '@deck.gl/react';
 import { TileLayer } from '@deck.gl/geo-layers';
 import { BitmapLayer, PolygonLayer } from '@deck.gl/layers';
 import { EditableGeoJsonLayer, DrawRectangleMode } from '@deck.gl-community/editable-layers';
+import {ClipExtension} from '@deck.gl/extensions';
 
 // Alabama center coordinates
 const INITIAL_VIEW_STATE = {
@@ -116,6 +117,13 @@ export default function MaskedAnimation() {
         data: null,
         image: props.data,
         bounds: [boundingBox[0][0], boundingBox[0][1], boundingBox[1][0], boundingBox[1][1]],
+        extensions: [new ClipExtension()],
+        clipBounds: selectedRect ? [
+          selectedRect.minLon,
+          selectedRect.minLat,
+          selectedRect.maxLon,
+          selectedRect.maxLat
+        ] : null,
       });
     }
   }) : null;
