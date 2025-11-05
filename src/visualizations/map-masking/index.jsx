@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import DeckGL from '@deck.gl/react';
 import { TileLayer, TerrainLayer } from '@deck.gl/geo-layers';
 import { GeoJsonLayer, BitmapLayer, PolygonLayer } from '@deck.gl/layers';
-import { MaskExtension } from '@deck.gl/extensions';
+import { MaskExtension, ClipExtension } from '@deck.gl/extensions';
 import { AmbientLight, DirectionalLight, LightingEffect } from '@deck.gl/core';
 
 const mapboxAccessToken = import.meta.env.VITE_MAPBOX_API_KEY;
@@ -16,7 +16,7 @@ const INITIAL_VIEW_STATE = {
   bearing: 0,
 };
 
-const elevationMultiplier = 40;
+const elevationMultiplier = 30;
 
 // Create lighting effects
 const ambientLight = new AmbientLight({
@@ -128,7 +128,7 @@ export default function MapMasking() {
     <DeckGL
       initialViewState={INITIAL_VIEW_STATE}
       controller={true}
-      layers={[baseChunkLayer, maskLayer, terrainLayer, boundaryLayer]}
+      layers={[baseChunkLayer, maskLayer, terrainLayer]}
       effects={[lightingEffect]}
     />
   );
