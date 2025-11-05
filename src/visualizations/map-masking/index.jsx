@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import DeckGL from '@deck.gl/react';
 import { TileLayer, TerrainLayer } from '@deck.gl/geo-layers';
-import { GeoJsonLayer, BitmapLayer } from '@deck.gl/layers';
+import { GeoJsonLayer, BitmapLayer, PolygonLayer } from '@deck.gl/layers';
 import { MaskExtension } from '@deck.gl/extensions';
+import { AmbientLight, DirectionalLight, LightingEffect } from '@deck.gl/core';
 
 const mapboxAccessToken = import.meta.env.VITE_MAPBOX_API_KEY;
 
@@ -15,7 +16,21 @@ const INITIAL_VIEW_STATE = {
   bearing: 0,
 };
 
-const elevationMultiplier = 10;
+const elevationMultiplier = 40;
+
+// Create lighting effects
+const ambientLight = new AmbientLight({
+  color: [255, 255, 255],
+  intensity: 1.0
+});
+
+const directionalLight = new DirectionalLight({
+  color: [255, 255, 255],
+  intensity: 2.0,
+  direction: [-1, -3, -1]
+});
+
+const lightingEffect = new LightingEffect({ ambientLight, directionalLight });
 
 export default function MapMasking() {
   const [alabamaGeojson, setAlabamaGeojson] = useState(null);
@@ -39,6 +54,22 @@ export default function MapMasking() {
     filled: true,
     getFillColor: [0, 0, 0, 0], // Transparent
     operation: 'mask',
+  });
+
+  // Create a solid chunk underneath to make it look 3D
+  const baseChunkLayer = new PolygonLayer({
+    id: 'base-chunk-layer',
+    data: alabamaGeojson.features,
+    getPolygon: d => d.geometry.coordinates,
+    getFillColor: [80, 60, 40], // Earth-brown color
+    getElevation: -50000, // Negative elevation to create depth
+    extruded: true,
+    wireframe: false,
+    material: {
+      ambient: 0.5,
+      diffuse: 0.6,
+      shininess: 32,
+    },
   });
 
   // Terrain layer with elevation data (Mapbox terrain-rgb tiles)
@@ -97,7 +128,8 @@ export default function MapMasking() {
     <DeckGL
       initialViewState={INITIAL_VIEW_STATE}
       controller={true}
-      layers={[maskLayer, terrainLayer, boundaryLayer]}
+      layers={[baseChunkLayer, maskLayer, terrainLayer, boundaryLayer]}
+      effects={[lightingEffect]}
     />
   );
 }
