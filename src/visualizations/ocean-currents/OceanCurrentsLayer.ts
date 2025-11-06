@@ -45,10 +45,10 @@ const defaultProps: DefaultProps<OceanCurrentsLayerProps> = {
   colorScale: {
     type: 'array',
     value: [
-      [0.1, 0.3, 0.8],  // Deep blue (cold)
-      [0.2, 0.8, 0.9],  // Cyan
-      [0.9, 0.9, 0.3],  // Yellow
-      [1.0, 0.3, 0.1],  // Red-orange (warm)
+      [0.0, 0.0, 0.5],  // Dark blue (0-5°C)
+      [0.6, 0.2, 0.8],  // Purple/Magenta (10°C)
+      [1.0, 0.3, 0.2],  // Red/Orange (15°C)
+      [1.0, 0.9, 0.3],  // Yellow (20-25°C)
     ],
     compare: false,
   },
