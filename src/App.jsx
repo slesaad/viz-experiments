@@ -27,6 +27,7 @@ const ThreeLayer = React.lazy(() => import('./visualizations/three-layer/index.j
 const VolumetricWind = React.lazy(() => import('./visualizations/volumetric/index.jsx'));
 const MapMasking = React.lazy(() => import('./visualizations/map-masking/index.jsx'));
 const MaskedAnimation = React.lazy(() => import('./visualizations/masked-animation/index.jsx'));
+const OceanCurrents = React.lazy(() => import('./visualizations/ocean-currents/index.jsx'));
 
 const visualizations = [
   // { label: 'LAZ', component: LAZ },
@@ -52,6 +53,7 @@ const visualizations = [
   { label: 'Volumetric Wind', path: '/volumetric', component: VolumetricWind },
   { label: 'Map Masking', path: '/map-masking', component: MapMasking },
   { label: 'Masked Animation', path: '/masked-animation', component: MaskedAnimation },
+  { label: 'Ocean Currents', path: '/ocean-currents', component: OceanCurrents },
 ];
 
 export default function App() {
