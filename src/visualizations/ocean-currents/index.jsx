@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import DeckGL from '@deck.gl/react';
 import { TileLayer } from '@deck.gl/geo-layers';
 import { BitmapLayer } from '@deck.gl/layers';
-import { createVelocityField, getVelocityStatistics } from './ocean-currents-velocity-field';
+import { createVelocityField, getSSTStatistics, sampleSST } from './ocean-currents-velocity-field';
 import { OceanParticleSystem } from './ocean-currents-particle-system';
 import OceanCurrentsLayer from './OceanCurrentsLayer';
 import oceanCurrentsData from './ocean_currents_grid.json';
@@ -34,12 +34,12 @@ export default function OceanCurrentsVisualization() {
   const [speedMultiplier, setSpeedMultiplier] = useState(50.0);
   const [numParticles, setNumParticles] = useState(50000);
   const [fadeOpacity, setFadeOpacity] = useState(0.9);
-  const [speedThreshold, setSpeedThreshold] = useState(0);
+  const [sstThreshold, setSSTThreshold] = useState(1);
 
   const velocityFieldRef = useRef(null);
   const particleSystemRef = useRef(null);
   const lastUpdateRef = useRef(Date.now());
-  const [velocityStats, setVelocityStats] = useState(null);
+  const [sstStats, setSSTStats] = useState(null);
 
   // Initialize velocity field and particle system
   useEffect(() => {
@@ -50,9 +50,9 @@ export default function OceanCurrentsVisualization() {
     velocityFieldRef.current = velocityField;
 
     // Get statistics for color scaling
-    const stats = getVelocityStatistics(velocityField);
-    setVelocityStats(stats);
-    console.log('Velocity field statistics:', stats);
+    const stats = getSSTStatistics(velocityField);
+    setSSTStats(stats);
+    console.log('SST statistics:', stats);
 
     // Initialize particle system
     particleSystemRef.current = new OceanParticleSystem({
@@ -112,11 +112,23 @@ export default function OceanCurrentsVisualization() {
     // Update particle system
     particleSystemRef.current.update(velocityFieldRef.current, 16);
 
-    // Get particle data
+    // Sample SST values for each particle
     const positions = particleSystemRef.current.getPositions();
     const ages = particleSystemRef.current.getAges();
-    const speedValues = particleSystemRef.current.getSpeedValues();
     const velocities = particleSystemRef.current.getVelocities();
+    const colorValues = new Float32Array(ages.length);
+
+    const field = velocityFieldRef.current;
+    for (let i = 0; i < ages.length; i++) {
+      const x = positions[i * 3];
+      const y = positions[i * 3 + 1];
+
+      // Convert world coords to normalized coords for sampling
+      const nx = (x - field.bounds.west) / (field.bounds.east - field.bounds.west);
+      const ny = (y - field.bounds.south) / (field.bounds.north - field.bounds.south);
+
+      colorValues[i] = sampleSST(field, nx, ny);
+    }
 
     // Convert to data array for the layer
     const data = [];
@@ -124,7 +136,7 @@ export default function OceanCurrentsVisualization() {
       data.push({
         position: [positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2]],
         age: ages[i],
-        speed: speedValues[i],
+        colorValue: colorValues[i],
         velocity: [velocities[i * 2], velocities[i * 2 + 1]],
       });
     }
@@ -134,14 +146,14 @@ export default function OceanCurrentsVisualization() {
 
   // Create ocean currents layer
   const oceanCurrentsLayer = useMemo(() => {
-    if (!velocityStats) return null;
+    if (!sstStats) return null;
 
-    // Color scale: Blue (slow) -> Cyan -> Yellow -> Red (fast)
+    // Color scale: Dark Blue -> Purple/Magenta -> Red/Orange -> Yellow (matches temp colormap)
     const colorScale = [
-      [0.05, 0.2, 0.6],   // Deep blue
-      [0.1, 0.6, 0.9],    // Cyan
-      [0.9, 0.9, 0.2],    // Yellow
-      [1.0, 0.2, 0.05],   // Red
+      [0.0, 0.0, 0.5],    // Dark blue (0-5°C)
+      [0.6, 0.2, 0.8],    // Purple/Magenta (10°C)
+      [1.0, 0.3, 0.2],    // Red/Orange (15°C)
+      [1.0, 0.9, 0.3],    // Yellow (20-25°C)
     ];
 
     return new OceanCurrentsLayer({
@@ -149,19 +161,19 @@ export default function OceanCurrentsVisualization() {
       data: particleData,
       getPosition: d => d.position,
       getAge: d => d.age,
-      getSpeed: d => d.speed,
+      getColorValue: d => d.colorValue,
       getVelocity: d => d.velocity,
       particleSize,
       fadeOpacity,
       time: time / 1000,
-      speedRange: {
-        min: velocityStats.minSpeed,
-        max: velocityStats.maxSpeed,
+      colorValueRange: {
+        min: sstStats.minSST,
+        max: sstStats.maxSST,
       },
-      speedThreshold,
+      colorThreshold: sstThreshold,
       colorScale,
     });
-  }, [particleData, particleSize, fadeOpacity, time, velocityStats, speedThreshold]);
+  }, [particleData, particleSize, fadeOpacity, time, sstStats, sstThreshold]);
 
   // Basemap layer
   const basemapLayer = useMemo(() => {
@@ -208,7 +220,7 @@ export default function OceanCurrentsVisualization() {
         boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
       }}>
         <h3 style={{ margin: '0 0 15px 0', fontSize: '18px' }}>
-          Ocean Currents Particle Flow
+          Ocean Currents & SST Visualization
         </h3>
 
         {/* Status */}
@@ -231,11 +243,11 @@ export default function OceanCurrentsVisualization() {
               {isPaused ? 'Paused' : 'Running'}
             </span>
           </div>
-          {velocityStats && (
+          {sstStats && (
             <div>
-              <strong>Speed Range:</strong>
+              <strong>SST Range:</strong>
               <span style={{ marginLeft: '8px' }}>
-                {velocityStats.minSpeed.toFixed(4)} - {velocityStats.maxSpeed.toFixed(4)} m/s
+                {sstStats.minSST.toFixed(2)}°C - {sstStats.maxSST.toFixed(2)}°C
               </span>
             </div>
           )}
@@ -279,7 +291,7 @@ export default function OceanCurrentsVisualization() {
         {/* Fade Opacity Control */}
         <div style={{ marginBottom: '15px' }}>
           <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px' }}>
-            Trail Fade: {fadeOpacity.toFixed(2)}
+            Particle Fade: {fadeOpacity.toFixed(2)}
           </label>
           <input
             type="range"
@@ -292,22 +304,22 @@ export default function OceanCurrentsVisualization() {
           />
         </div>
 
-        {/* Velocity Threshold Control */}
+        {/* SST Threshold Control */}
         <div style={{ marginBottom: '15px' }}>
           <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px' }}>
-            Velocity Threshold: {speedThreshold.toFixed(4)} m/s
+            SST Threshold: {sstThreshold.toFixed(2)}°C
           </label>
           <input
             type="range"
-            min="0"
-            max={velocityStats ? velocityStats.maxSpeed : 1}
-            step="0.0001"
-            value={speedThreshold}
-            onChange={(e) => setSpeedThreshold(parseFloat(e.target.value))}
+            min={sstStats ? sstStats.minSST : -999}
+            max={sstStats ? sstStats.maxSST : 30}
+            step="0.1"
+            value={sstThreshold}
+            onChange={(e) => setSSTThreshold(parseFloat(e.target.value))}
             style={{ width: '100%' }}
           />
           <div style={{ fontSize: '11px', color: '#999', marginTop: '4px' }}>
-            Hide particles with speed below threshold
+            Hide particles with SST below threshold
           </div>
         </div>
 
@@ -363,9 +375,9 @@ export default function OceanCurrentsVisualization() {
           ✓ GPU-accelerated particle rendering<br />
           ✓ Velocity field sampling (bilinear)<br />
           ✓ TTL-based particle lifecycle<br />
-          ✓ Velocity threshold filtering<br />
-          ✓ Wispy trail rendering<br />
-          ✓ Speed-based coloring
+          ✓ SST threshold filtering<br />
+          ✓ Circular particle rendering<br />
+          ✓ SST-based coloring (temperature)
         </div>
 
         {/* Info */}
@@ -377,8 +389,8 @@ export default function OceanCurrentsVisualization() {
           <strong style={{ color: '#fff' }}>How it works:</strong><br />
           • Particles advected by velocity field<br />
           • U (eastward) + V (northward) velocities<br />
-          • Blue = slow currents<br />
-          • Red = fast currents<br />
+          • Dark blue → purple → red → yellow<br />
+          • Reflects water temperature (SST)<br />
           • Particles fade in/out with age (TTL)
         </div>
       </div>
@@ -395,8 +407,9 @@ export default function OceanCurrentsVisualization() {
         fontSize: '11px',
       }}>
         Ocean Velocity: UVEL + VVEL (1992-01)<br />
+        SST: Sea Surface Temperature<br />
         Resolution: 1440x720 (0.25° grid)<br />
-        Data: NetCDF Ocean Currents<br />
+        Data: NetCDF Ocean Currents + SST<br />
         Rendering: Custom deck.gl Layer + GLSL
       </div>
     </div>
