@@ -13,9 +13,9 @@ uniform oceanCurrentsUniforms {
   vec3 colorScale1;
   vec3 colorScale2;
   vec3 colorScale3;
-  float speedMin;
-  float speedMax;
-  float speedThreshold;
+  float colorValueMin;
+  float colorValueMax;
+  float colorThreshold;
 } oceanCurrents;
 `;
 
@@ -27,9 +27,9 @@ export type OceanCurrentsProps = {
   colorScale1: [number, number, number];
   colorScale2: [number, number, number];
   colorScale3: [number, number, number];
-  speedMin: number;
-  speedMax: number;
-  speedThreshold: number;
+  colorValueMin: number;
+  colorValueMax: number;
+  colorThreshold: number;
 };
 
 export const oceanCurrentsUniforms = {
@@ -44,8 +44,8 @@ export const oceanCurrentsUniforms = {
     colorScale1: 'vec3<f32>',
     colorScale2: 'vec3<f32>',
     colorScale3: 'vec3<f32>',
-    speedMin: 'f32',
-    speedMax: 'f32',
-    speedThreshold: 'f32',
+    colorValueMin: 'f32',
+    colorValueMax: 'f32',
+    colorThreshold: 'f32',
   }
 } as const satisfies ShaderModule<OceanCurrentsProps>;

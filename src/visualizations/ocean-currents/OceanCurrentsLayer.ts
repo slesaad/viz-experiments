@@ -16,7 +16,7 @@ import fs from './ocean-currents-fragment.glsl';
 export type OceanParticleData = {
   position: [number, number, number];
   age: number;
-  speed?: number;
+  colorValue?: number; // SST or speed
   velocity?: [number, number];
 };
 
@@ -24,20 +24,20 @@ export type OceanCurrentsLayerProps<DataT = OceanParticleData> = {
   data: DataT[];
   getPosition?: Accessor<DataT, [number, number, number]>;
   getAge?: Accessor<DataT, number>;
-  getSpeed?: Accessor<DataT, number>;
+  getColorValue?: Accessor<DataT, number>;
   getVelocity?: Accessor<DataT, [number, number]>;
   particleSize?: number;
   fadeOpacity?: number;
   time?: number;
   colorScale?: [number, number, number][];
-  speedRange?: { min: number; max: number };
-  speedThreshold?: number;
+  colorValueRange?: { min: number; max: number };
+  colorThreshold?: number;
 } & LayerProps;
 
 const defaultProps: DefaultProps<OceanCurrentsLayerProps> = {
   getPosition: { type: 'accessor', value: (d: OceanParticleData) => d.position },
   getAge: { type: 'accessor', value: (d: OceanParticleData) => d.age },
-  getSpeed: { type: 'accessor', value: (d: OceanParticleData) => d.speed || 0 },
+  getColorValue: { type: 'accessor', value: (d: OceanParticleData) => d.colorValue || 0 },
   getVelocity: { type: 'accessor', value: (d: OceanParticleData) => d.velocity || [0, 0] },
   particleSize: { type: 'number', value: 3.0, min: 0.1, max: 100 },
   fadeOpacity: { type: 'number', value: 1.0, min: 0, max: 1 },
@@ -45,15 +45,15 @@ const defaultProps: DefaultProps<OceanCurrentsLayerProps> = {
   colorScale: {
     type: 'array',
     value: [
-      [0.1, 0.3, 0.8],  // Deep blue (slow)
-      [0.2, 0.8, 0.9],  // Cyan (medium-slow)
-      [0.9, 0.9, 0.3],  // Yellow (medium-fast)
-      [1.0, 0.3, 0.1],  // Red-orange (fast)
+      [0.1, 0.3, 0.8],  // Deep blue (cold)
+      [0.2, 0.8, 0.9],  // Cyan
+      [0.9, 0.9, 0.3],  // Yellow
+      [1.0, 0.3, 0.1],  // Red-orange (warm)
     ],
     compare: false,
   },
-  speedRange: { type: 'object', value: { min: 0, max: 1 }, compare: false },
-  speedThreshold: { type: 'number', value: 0, min: 0, max: 1 },
+  colorValueRange: { type: 'object', value: { min: 0, max: 1 }, compare: false },
+  colorThreshold: { type: 'number', value: -999, min: -999, max: 999 },
 };
 
 export default class OceanCurrentsLayer<DataT = OceanParticleData> extends Layer<OceanCurrentsLayerProps<DataT>> {
@@ -89,11 +89,11 @@ export default class OceanCurrentsLayer<DataT = OceanParticleData> extends Layer
         transition: true,
         accessor: 'getAge',
       },
-      instanceSpeed: {
+      instanceColorValue: {
         size: 1,
         type: 'float32',
         transition: true,
-        accessor: 'getSpeed',
+        accessor: 'getColorValue',
       },
       instanceVelocity: {
         size: 2,
@@ -173,7 +173,7 @@ export default class OceanCurrentsLayer<DataT = OceanParticleData> extends Layer
   }
 
   draw(): void {
-    const { particleSize, fadeOpacity, time, colorScale, speedRange, speedThreshold } = this.props;
+    const { particleSize, fadeOpacity, time, colorScale, colorValueRange, colorThreshold } = this.props;
     const { model } = this.state;
 
     if (!model) {
@@ -189,9 +189,9 @@ export default class OceanCurrentsLayer<DataT = OceanParticleData> extends Layer
       colorScale1: colorScale?.[1] ?? [0.2, 0.8, 0.9],
       colorScale2: colorScale?.[2] ?? [0.9, 0.9, 0.3],
       colorScale3: colorScale?.[3] ?? [1.0, 0.3, 0.1],
-      speedMin: speedRange?.min ?? 0,
-      speedMax: speedRange?.max ?? 1,
-      speedThreshold: speedThreshold ?? 0,
+      colorValueMin: colorValueRange?.min ?? 0,
+      colorValueMax: colorValueRange?.max ?? 1,
+      colorThreshold: colorThreshold ?? -999,
     };
 
     model.shaderInputs.setProps({

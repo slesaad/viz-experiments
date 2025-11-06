@@ -7,6 +7,7 @@ export interface VelocityField {
   width: number;
   height: number;
   data: Float32Array; // [u0, v0, u1, v1, ...] interleaved velocity components
+  sstData?: Float32Array; // SST (sea surface temperature) values
   bounds: VelocityFieldBounds;
 }
 
@@ -31,6 +32,7 @@ export interface OceanCurrentsData {
   u: number[][];
   v: number[][];
   w?: number[][];
+  sst?: number[][];
 }
 
 /**
@@ -91,7 +93,19 @@ export function createVelocityField(oceanData: OceanCurrentsData): VelocityField
     }
   }
 
-  return { width, height, data, bounds };
+  // Convert SST data if available
+  let sstData: Float32Array | undefined = undefined;
+  if (oceanData.sst) {
+    sstData = new Float32Array(width * height);
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const idx = y * width + x;
+        sstData[idx] = oceanData.sst[y][x];
+      }
+    }
+  }
+
+  return { width, height, data, sstData, bounds };
 }
 
 /**
@@ -160,6 +174,55 @@ export function sampleSpeed(
 }
 
 /**
+ * Sample SST at a normalized position [0, 1]
+ * Uses bilinear interpolation for smooth transitions
+ */
+export function sampleSST(
+  field: VelocityField,
+  nx: number,
+  ny: number
+): number {
+  if (!field.sstData) {
+    return 0;
+  }
+
+  // Wrap coordinates for global ocean data
+  nx = ((nx % 1) + 1) % 1;
+  ny = ((ny % 1) + 1) % 1;
+
+  // Convert normalized coordinates to field coordinates
+  const x = nx * (field.width - 1);
+  const y = ny * (field.height - 1);
+
+  const x0 = Math.floor(x);
+  const y0 = Math.floor(y);
+  const x1 = Math.min(x0 + 1, field.width - 1);
+  const y1 = Math.min(y0 + 1, field.height - 1);
+
+  const fx = x - x0;
+  const fy = y - y0;
+
+  // Get indices for bilinear interpolation
+  const idx00 = y0 * field.width + x0;
+  const idx10 = y0 * field.width + x1;
+  const idx01 = y1 * field.width + x0;
+  const idx11 = y1 * field.width + x1;
+
+  // Sample SST values
+  const sst00 = field.sstData[idx00];
+  const sst10 = field.sstData[idx10];
+  const sst01 = field.sstData[idx01];
+  const sst11 = field.sstData[idx11];
+
+  // Bilinear interpolation
+  const sst0 = sst00 * (1 - fx) + sst10 * fx;
+  const sst1 = sst01 * (1 - fx) + sst11 * fx;
+  const sst = sst0 * (1 - fy) + sst1 * fy;
+
+  return sst;
+}
+
+/**
  * Calculate velocity field statistics
  */
 export function getVelocityStatistics(field: VelocityField): {
@@ -187,5 +250,45 @@ export function getVelocityStatistics(field: VelocityField): {
     minSpeed,
     maxSpeed,
     meanSpeed: totalSpeed / count,
+  };
+}
+
+/**
+ * Calculate SST statistics
+ */
+export function getSSTStatistics(field: VelocityField): {
+  minSST: number;
+  maxSST: number;
+  meanSST: number;
+} {
+  if (!field.sstData) {
+    return {
+      minSST: 0,
+      maxSST: 0,
+      meanSST: 0,
+    };
+  }
+
+  let minSST = Infinity;
+  let maxSST = -Infinity;
+  let totalSST = 0;
+  let count = 0;
+
+  for (let i = 0; i < field.sstData.length; i++) {
+    const sst = field.sstData[i];
+
+    // Skip NaN or invalid values
+    if (isNaN(sst) || !isFinite(sst)) continue;
+
+    if (sst < minSST) minSST = sst;
+    if (sst > maxSST) maxSST = sst;
+    totalSST += sst;
+    count++;
+  }
+
+  return {
+    minSST,
+    maxSST,
+    meanSST: totalSST / count,
   };
 }

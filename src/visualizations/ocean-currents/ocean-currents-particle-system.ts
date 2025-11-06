@@ -10,7 +10,7 @@ export interface OceanParticle {
   y: number; // normalized [0, 1]
   age: number; // in frames
   maxAge: number; // maximum age before reset (TTL)
-  speedValue?: number; // current speed at particle position
+  colorValue?: number; // value for coloring (SST or speed)
   vx: number; // velocity x component
   vy: number; // velocity y component
 }
@@ -66,7 +66,7 @@ export class OceanParticleSystem {
   update(
     velocityField: VelocityField,
     dt: number = 1.0,
-    speedSampleFn?: (x: number, y: number) => number
+    colorSampleFn?: (x: number, y: number) => number
   ): void {
     for (const particle of this.particles) {
       // Sample velocity at particle position
@@ -90,12 +90,12 @@ export class OceanParticleSystem {
       if (particle.y < 0.05) particle.y = 0.05; // Near south pole
       if (particle.y > 0.95) particle.y = 0.95; // Near north pole
 
-      // Sample speed value at new position if function provided
-      if (speedSampleFn) {
-        particle.speedValue = speedSampleFn(particle.x, particle.y);
+      // Sample color value at new position (SST or speed)
+      if (colorSampleFn) {
+        particle.colorValue = colorSampleFn(particle.x, particle.y);
       } else {
         // Default: calculate speed from velocity
-        particle.speedValue = Math.sqrt(u * u + v * v);
+        particle.colorValue = Math.sqrt(u * u + v * v);
       }
 
       // Update age
@@ -116,8 +116,13 @@ export class OceanParticleSystem {
 
     for (let i = 0; i < this.particles.length; i++) {
       const particle = this.particles[i];
-      const lng = this.bounds.west + particle.x * (this.bounds.east - this.bounds.west);
+      let lng = this.bounds.west + particle.x * (this.bounds.east - this.bounds.west);
       const lat = this.bounds.south + particle.y * (this.bounds.north - this.bounds.south);
+
+      // Convert from 0-360 range to -180 to 180 range for deck.gl
+      if (lng > 180) {
+        lng -= 360;
+      }
 
       positions[i * 3] = lng;
       positions[i * 3 + 1] = lat;
@@ -155,15 +160,15 @@ export class OceanParticleSystem {
   }
 
   /**
-   * Get particle speed values
+   * Get particle color values (SST or speed)
    */
-  getSpeedValues(): Float32Array {
-    const speedValues = new Float32Array(this.particles.length);
+  getColorValues(): Float32Array {
+    const colorValues = new Float32Array(this.particles.length);
 
     for (let i = 0; i < this.particles.length; i++) {
-      speedValues[i] = this.particles[i].speedValue || 0;
+      colorValues[i] = this.particles[i].colorValue || 0;
     }
 
-    return speedValues;
+    return colorValues;
   }
 }

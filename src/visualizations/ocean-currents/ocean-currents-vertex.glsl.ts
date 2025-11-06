@@ -9,19 +9,19 @@ in vec2 texCoords;
 in vec3 instancePositions;
 in float instanceAges;
 in vec2 instanceVelocity;
-in float instanceSpeed;
+in float instanceColorValue;
 
 out float vAge;
-out float vSpeedValue;
+out float vColorValue;
 out vec2 vTexCoord;
 
 void main(void) {
   // Set geometry world position for picking (use particle center)
   geometry.worldPosition = instancePositions;
 
-  // Pass age, speed value, and tex coords to fragment shader
+  // Pass age, color value, and tex coords to fragment shader
   vAge = instanceAges;
-  vSpeedValue = instanceSpeed;
+  vColorValue = instanceColorValue;
   vTexCoord = texCoords;
 
   // Calculate size factor based on age (fade in and out)
@@ -33,31 +33,8 @@ void main(void) {
   vec3 center_commonspace = project_position(instancePositions);
   vec4 center_clipspace = project_common_position_to_clipspace(vec4(center_commonspace, 1.0));
 
-  // Calculate velocity magnitude
-  float speed = length(instanceVelocity);
-
-  // Create wispy trail by stretching along velocity direction
-  // Elongate in the direction of motion
-  vec2 velocityDir = speed > 0.0001 ? normalize(instanceVelocity) : vec2(1.0, 0.0);
-
-  // Rotation matrix to align particle with velocity
-  float angle = atan(velocityDir.y, velocityDir.x);
-  float cosA = cos(angle);
-  float sinA = sin(angle);
-  mat2 rotation = mat2(cosA, -sinA, sinA, cosA);
-
-  // Stretch factor: make particles longer based on speed
-  // Normalized speed for consistent stretching
-  float normalizedSpeed = (vSpeedValue - oceanCurrents.speedMin) / (oceanCurrents.speedMax - oceanCurrents.speedMin);
-  float stretchFactor = 1.0 + normalizedSpeed * 8.0; // More stretch for faster currents
-  vec2 stretchedPos = positions.xy;
-  stretchedPos.x *= stretchFactor; // Elongate along x (will be rotated to velocity direction)
-
-  // Apply rotation to align with velocity
-  vec2 rotatedPos = rotation * stretchedPos;
-
-  // Scale to pixels and then to NDC
-  vec2 offset_pixels = rotatedPos * baseSize;
+  // Create circular particles (no stretching or rotation)
+  vec2 offset_pixels = positions.xy * baseSize;
   vec2 offset_ndc = offset_pixels / project.viewportSize * 2.0;
 
   // Apply offset in clip space (billboard effect)
